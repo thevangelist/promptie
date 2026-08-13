@@ -56,17 +56,27 @@ You prompt normally. When a capture happens you see one line:
 Whenever you feel like it:
 
 ```sh
-promptie stats        # where your corrections cluster
-promptie candidates   # the rules worth promoting by hand
-promptie export --format jsonl -o notes.jsonl
+promptie log          # your notes, oldest first
+promptie show 00007   # read one
+promptie grep cache   # search them
+promptie rm 00007     # prune one, index rebuilt
+promptie status       # is capture actually live
 ```
+
+The verbs are git's and unix's on purpose. This is an append-only, ordered store,
+so it may as well read like one.
 
 Too much or too little:
 
 ```sh
-promptie sensitivity low      # 3 a day, instead of 6
-promptie sensitivity high     # 12 a day
+promptie config                          # what is set now
+promptie config sensitivity low          # 3 a day
+promptie config sensitivity extreme      # 40 a day
 ```
+
+Five levels: `minimal` 1, `low` 3, `normal` 6, `high` 12, `extreme` 40 notes a day.
+The level sets the judgement bar written into the skill; the cap is enforced by the
+allocator, which refuses and says so rather than writing quietly.
 
 Off, when a session is throwaway:
 

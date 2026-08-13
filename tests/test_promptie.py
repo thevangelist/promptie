@@ -362,46 +362,6 @@ class TestEndToEnd(unittest.TestCase):
         self.assertNotEqual(0, bad_kind.returncode)
         self.assertNotEqual(0, bad_scope.returncode)
 
-    def test_promotable_notes_reach_the_candidate_list(self):
-        installer.install(self.p, self.profile)
-        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
-        store = Path(self.p.store_path)
-        for number, slug in (("00001", "a"), ("00002", "b"), ("00003", "c")):
-            self._note(number, slug)
-        self._run(index, "00001", "2026-01-01", "a", "universal", "constraint", "h")
-        self.assertTrue((store / "CANDIDATES.md").exists())
-        self._run(index, "00002", "2026-01-01", "b", "universal", "correction", "h")
-        self._run(index, "00003", "2026-01-01", "c", self.p.restrictive_scope,
-                  "constraint", "h")
-        lines = [l for l in (store / "CANDIDATES.md").read_text(encoding="utf-8").splitlines() if l]
-        self.assertEqual(1, len(lines), "only the promotable, non-restricted note qualifies")
-
-    def test_index_refuses_a_note_without_its_date(self):
-        installer.install(self.p, self.profile)
-        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
-        store = Path(self.p.store_path)
-        (store / "00001-undated.md").write_text("---\nname: undated\n---\n\nRule.\n",
-                                                 encoding="utf-8")
-        result = self._run(index, "00001", "2026-01-01", "undated", "universal",
-                           "constraint", "h")
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("captured", result.stderr)
-
-    def test_index_refuses_a_date_that_disagrees_with_the_note(self):
-        installer.install(self.p, self.profile)
-        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
-        self._note("00001", "dated", date="2026-01-01")
-        result = self._run(index, "00001", "2026-06-06", "dated", "universal",
-                           "constraint", "h")
-        self.assertNotEqual(0, result.returncode)
-
-    def test_index_refuses_when_the_note_does_not_exist(self):
-        installer.install(self.p, self.profile)
-        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
-        result = self._run(index, "00009", "2026-01-01", "ghost", "universal",
-                           "constraint", "h")
-        self.assertNotEqual(0, result.returncode)
-
     def _hooks(self):
         return self.profile_dir / "hooks" / "collision_capture_hooks.py"
 

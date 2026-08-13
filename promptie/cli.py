@@ -342,10 +342,10 @@ def _closing(p, first=False):
         print()
     _say("From here you do nothing. Prompt normally.")
     print()
+    print("  %-22s %s" % (_paint("promptie list", C.BOLD),
+                          _paint("your notes, oldest first", C.DIM)))
     print("  %-22s %s" % (_paint("promptie stats", C.BOLD),
-                          _paint("what has accumulated, without opening a note", C.DIM)))
-    print("  %-22s %s" % (_paint("promptie candidates", C.BOLD),
-                          _paint("the ones worth reviewing by hand", C.DIM)))
+                          _paint("where your corrections cluster", C.DIM)))
     print("  %-22s %s" % (_paint("promptie sensitivity", C.BOLD),
                           _paint("change the rate later", C.DIM)))
     print()
@@ -382,7 +382,7 @@ def cmd_profiles(args):
     return 0
 
 
-def cmd_list(args):
+def cmd_personas(args):
     seen, found = set(), []
     for directory in PERSONA_DIRS:
         for path in sorted(directory.glob("*.y*ml")) if directory.exists() else []:
@@ -474,6 +474,36 @@ def cmd_install(args):
               % len(perms))
     print("\nstore: %s" % p.store_path)
     return 0
+
+
+def cmd_config(args):
+    """Read or set a setting, in the shape of `git config`.
+
+    With no value it prints. With one it writes and reinstalls, because the
+    setting lives in two generated places at once -- the wording in SKILL.md and
+    the hard cap in the allocator -- and they must never disagree.
+    """
+    p = _load(DEFAULT_PERSONA)
+    if not args.key:
+        print()
+        print("  %-14s %s" % ("store", p.store))
+        print("  %-14s %s  %s" % ("sensitivity", p.sensitivity,
+                                  _paint("(%d notes/day)" % p.max_per_day, C.DIM)))
+        print("  %-14s %s" % ("icon", p.icon))
+        print("  %-14s %s" % ("skill", p.skill))
+        print()
+        print(_sensitivity_menu())
+        print()
+        print(_paint("  promptie config sensitivity <level>", C.DIM))
+        return 0
+
+    if args.key != "sensitivity":
+        raise SystemExit("only `sensitivity` is settable here. Edit the persona in "
+                         "%s for anything else." % USER_PERSONAS)
+    args.level = args.value
+    args.max_per_day = None
+    args.profile = None
+    return cmd_sensitivity(args)
 
 
 def cmd_sensitivity(args):
@@ -603,6 +633,195 @@ def _index_rows(store: Path):
     return rows
 
 
+def cmd_list(args):
+    """Every note, oldest first, so the newest is where your eye already is.
+
+    Reads the index lines only, never a note. That keeps the one surface you
+    browse cheap, and it means this command shows exactly what the store itself
+    promised to record.
+    """
+    p = _load(args.persona)
+    rows = _index_rows(Path(p.store_path))
+    if not rows:
+        print("no notes yet in %s" % p.store)
+        return 0
+
+    if args.kind:
+        rows = [r for r in rows if r["kind"] == args.kind]
+    if args.scope:
+        rows = [r for r in rows if r["scope"] == args.scope]
+
+    width = max(len(r["hook"]) for r in rows)
+    for row in rows:
+        print("  %s  %s  %s  %s" % (
+            _paint(row["num"], C.DIM),
+            row["date"],
+            row["hook"].ljust(width),
+            _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
+    print()
+    print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
+    return 0
+
+
+def _find_note(store: Path, ident: str):
+    """Locate a note by id or by a fragment of its slug."""
+    matches = sorted(store.glob("%s-*.md" % ident))
+    if not matches:
+        matches = sorted(p for p in store.glob("*-*.md") if ident.lower() in p.name.lower())
+    if not matches:
+        raise SystemExit("no note matching %r in %s" % (ident, store))
+    if len(matches) > 1:
+        print("several notes match %r:" % ident)
+        for path in matches:
+            print("  %s" % path.name)
+        raise SystemExit(1)
+    return matches[0]
+
+
+def cmd_read(args):
+    """Print one note.
+
+    The write-only rule binds the assistant, not you. Without a way to read a
+    note from here, `list` is a dead end: you see a line worth following and have
+    to go find the file yourself.
+    """
+    p = _load(args.persona)
+    path = _find_note(Path(p.store_path), args.note)
+    print()
+    print(_paint(path.name, C.DIM))
+    print()
+    print(path.read_text(encoding="utf-8").rstrip())
+    print()
+    return 0
+
+
+def cmd_search(args):
+    """Full-text search across the notes.
+
+    Once a store passes a hundred notes, listing them is no longer finding them.
+    This is the difference between an archive and a pile.
+    """
+    p = _load(args.persona)
+    store = Path(p.store_path)
+    needle = args.query.lower()
+    hits = 0
+    for path in sorted(store.glob("*-*.md")):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        found = [(n, l) for n, l in enumerate(lines, 1) if needle in l.lower()]
+        if not found:
+            continue
+        hits += 1
+        print()
+        print(_paint(path.name, C.BOLD))
+        for n, line in found[:args.context]:
+            print("  %s  %s" % (_paint("%4d" % n, C.DIM), line.strip()))
+    print()
+    print("  %d note%s matched %r" % (hits, "" if hits == 1 else "s", args.query))
+    return 0
+
+
+def cmd_rm(args):
+    """Delete a note, and rebuild the index without it.
+
+    Deduplication and pruning are the human's job by design, and until now there
+    was no tool for the job. Deleting the file alone would leave a dangling index
+    line, so the index is rebuilt from what remains.
+    """
+    p = _load(args.persona)
+    store = Path(p.store_path)
+    path = _find_note(store, args.note)
+    print(path.read_text(encoding="utf-8").rstrip()[:400])
+    if not args.yes:
+        answer = _ask("\n  delete this note? [y/N]", "n").lower()
+        if answer not in ("y", "yes"):
+            print("  kept")
+            return 0
+    path.unlink()
+
+    index = store / "INDEX.md"
+    if index.exists():
+        kept = [l for l in index.read_text(encoding="utf-8").splitlines()
+                if path.name not in l]
+        index.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    print("  deleted %s" % path.name)
+    return 0
+
+
+def cmd_open(args):
+    """Open the store in whatever the platform uses for a directory."""
+    p = _load(args.persona)
+    store = Path(p.store_path)
+    opener = {"darwin": "open", "win32": "explorer"}.get(sys.platform, "xdg-open")
+    subprocess.call([opener, str(store)])
+    print("  %s" % store)
+    return 0
+
+
+def cmd_doctor(args):
+    """Check that capture is actually live, and say so plainly.
+
+    The worst failure this tool can have is looking installed while doing
+    nothing: hooks load at session start, so a session that began before the
+    install has none, and silence looks identical either way. This command is the
+    answer to "why is nothing being captured".
+    """
+    p = _load(args.persona)
+    problems = []
+
+    def check(label, ok, detail=""):
+        mark = _paint("ok  ", C.OK) if ok else _paint("FAIL", C.WARN)
+        print("  %s %-34s %s" % (mark, label, _paint(detail, C.DIM)))
+        if not ok:
+            problems.append(label)
+
+    print()
+    profiles = _load_config().get("profiles", [])
+    check("profiles configured", bool(profiles), ", ".join(profiles) or "run: promptie onboard")
+
+    for raw in profiles:
+        profile = Profile(raw)
+        sdir = installer.skill_dir(p, profile)
+        check("skill installed", (sdir / "SKILL.md").exists(), str(sdir))
+        check("scripts installed",
+              (sdir / "new_note.py").exists() and (sdir / "append_index.py").exists())
+
+        settings = profile.load_settings()
+        hooks = json.dumps(settings.get("hooks", {}))
+        for event in ("SessionStart", "PostToolUse", "PreCompact"):
+            check("%s hook registered" % event, event in settings.get("hooks", {}) and
+                  p.name.replace("-", "_") in hooks)
+
+        allow = settings.get("permissions", {}).get("allow", [])
+        writes = [e for e in allow if e.startswith(("Write(", "Edit("))
+                  and p.store_path in e]
+        check("store pre-authorised", len(writes) == 2,
+              "without this every capture asks permission")
+        check("permission paths absolute", all(e.split("(")[1].startswith("//") for e in writes))
+
+    store = Path(p.store_path)
+    check("store exists", store.exists(), str(store))
+    if store.exists():
+        probe = store / ".promptie-write-probe"
+        try:
+            probe.write_text("", encoding="utf-8")
+            probe.unlink()
+            check("store writable", True)
+        except OSError as exc:
+            check("store writable", False, str(exc))
+
+    exe = installer.runtime_python()
+    check("interpreter still present", os.path.exists(exe), exe)
+
+    print()
+    if problems:
+        print("  %s  run: promptie install" % _paint("%d problem(s)" % len(problems), C.WARN))
+        return 1
+    print("  %s" % _paint("capture is live", C.OK))
+    print(_paint("  Hooks load when a session starts, so start a new session after "
+                 "installing.", C.DIM))
+    return 0
+
+
 def cmd_stats(args):
     p = _load(args.persona)
     store = Path(p.store_path)
@@ -631,25 +850,6 @@ def cmd_stats(args):
     print("\nby week:")
     for label in sorted(weeks)[-8:]:
         print("  %-10s %3d  %s" % (label, weeks[label], "#" * min(weeks[label], 40)))
-    return 0
-
-
-def cmd_candidates(args):
-    """The shortlist for the human's manual promotion pass.
-
-    Written by the allocator as notes land; read only here, by the human. Nothing
-    in this command moves a note anywhere -- promotion stays a deliberate action.
-    """
-    p = _load(args.persona)
-    path = Path(p.store_path) / "CANDIDATES.md"
-    if not path.exists():
-        print("no candidates yet (%s)" % path)
-        return 0
-    rows = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
-    print("%d candidate(s) for promotion -- review, then move by hand:\n" % len(rows))
-    for line in rows[-args.limit:]:
-        print(line)
-    print("\nsource: %s" % path)
     return 0
 
 
@@ -695,22 +895,69 @@ def build_parser():
     onb = sub.add_parser("onboard", help="guided first-time setup (start here)")
     onb.set_defaults(fn=cmd_onboard)
 
-    init = sub.add_parser("init", help="configure which Claude profiles receive personas")
-    init.add_argument("--profile", action="append", required=True,
-                      help="path to a Claude config dir (repeatable)")
-    init.set_defaults(fn=cmd_init)
+    doc = sub.add_parser("status", aliases=["doctor"],
+                         help="check that capture is actually live")
+    doc.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    doc.set_defaults(fn=cmd_doctor)
 
-    sub.add_parser("profiles", help="show configured profiles").set_defaults(fn=cmd_profiles)
-    sub.add_parser("list", help="show available personas").set_defaults(fn=cmd_list)
+    lst = sub.add_parser("log", aliases=["list", "ls"],
+                         help="your notes, oldest first")
+    lst.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    lst.add_argument("-k", "--kind", choices=sorted(model.COLLISION_KINDS))
+    lst.add_argument("-s", "--scope")
+    lst.set_defaults(fn=cmd_list)
 
-    chk = sub.add_parser("check", help="validate a persona and measure its context cost")
-    chk.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    chk.set_defaults(fn=cmd_check)
+    rd = sub.add_parser("show", aliases=["read", "cat"], help="print one note")
+    rd.add_argument("note", help="id, or part of the slug")
+    rd.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    rd.set_defaults(fn=cmd_read)
 
-    pv = sub.add_parser("preview", help="print generated artefacts without installing")
-    pv.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    pv.add_argument("-f", "--file", help="only this artefact, e.g. SKILL.md")
-    pv.set_defaults(fn=cmd_preview)
+    se = sub.add_parser("grep", aliases=["search"],
+                        help="search across your notes")
+    se.add_argument("query")
+    se.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    se.add_argument("-c", "--context", type=int, default=3, help="lines shown per note")
+    se.set_defaults(fn=cmd_search)
+
+    rm = sub.add_parser("rm", help="delete a note and rebuild the index")
+    rm.add_argument("note", help="id, or part of the slug")
+    rm.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    rm.add_argument("-y", "--yes", action="store_true", help="skip the confirmation")
+    rm.set_defaults(fn=cmd_rm)
+
+    cfg = sub.add_parser("config", help="show or set settings")
+    cfg.add_argument("key", nargs="?", choices=["sensitivity"])
+    cfg.add_argument("value", nargs="?")
+    cfg.set_defaults(fn=cmd_config)
+
+    sen = sub.add_parser("sensitivity", help="shorthand for config sensitivity")
+    sen.add_argument("level", nargs="?", choices=model.SENSITIVITY_ORDER,
+                     help="low, normal or high")
+    sen.add_argument("--persona", default=DEFAULT_PERSONA)
+    sen.add_argument("--max-per-day", dest="max_per_day", type=int)
+    sen.add_argument("--profile", action="append")
+    sen.set_defaults(fn=cmd_sensitivity)
+
+    st = sub.add_parser("stats", help="counts and distributions from INDEX.md only")
+    st.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    st.set_defaults(fn=cmd_stats)
+
+
+    cost = sub.add_parser("cost", help="estimate token and disk cost")
+    cost.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    cost.add_argument("--turns", type=int, default=40, help="turns per session (default 40)")
+    cost.add_argument("--sessions", type=int, default=4, help="sessions per day (default 4)")
+    cost.set_defaults(fn=cmd_cost)
+
+    exp = sub.add_parser("export", help="derive a machine-readable view of the store")
+    exp.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    exp.add_argument("--format", choices=["json", "jsonl"], default="json")
+    exp.add_argument("-o", "--out")
+    exp.set_defaults(fn=cmd_export)
+
+    op = sub.add_parser("open", help="open the store in a file manager")
+    op.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    op.set_defaults(fn=cmd_open)
 
     ins = sub.add_parser("install", help="install a persona into the configured profiles")
     ins.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
@@ -724,39 +971,27 @@ def build_parser():
 
     # The level comes first because "promptie sensitivity high" is what anyone
     # would type. The persona is the rare part, so it moves to a flag.
-    sen = sub.add_parser("sensitivity", help="retune how often a persona captures")
-    sen.add_argument("level", nargs="?", choices=model.SENSITIVITY_ORDER,
-                     help="low, normal or high")
-    sen.add_argument("--persona", default=DEFAULT_PERSONA)
-    sen.add_argument("--max-per-day", dest="max_per_day", type=int)
-    sen.add_argument("--profile", action="append")
-    sen.set_defaults(fn=cmd_sensitivity)
-
-    exp = sub.add_parser("export", help="derive a machine-readable view of the store")
-    exp.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    exp.add_argument("--format", choices=["json", "jsonl"], default="json")
-    exp.add_argument("-o", "--out")
-    exp.set_defaults(fn=cmd_export)
-
-    cost = sub.add_parser("cost", help="estimate token and disk cost")
-    cost.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    cost.add_argument("--turns", type=int, default=40, help="turns per session (default 40)")
-    cost.add_argument("--sessions", type=int, default=4, help="sessions per day (default 4)")
-    cost.set_defaults(fn=cmd_cost)
-
-    st = sub.add_parser("stats", help="counts and distributions from INDEX.md only")
-    st.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    st.set_defaults(fn=cmd_stats)
-
-    cand = sub.add_parser("candidates", help="shortlist flagged for manual promotion")
-    cand.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
-    cand.add_argument("-n", "--limit", type=int, default=30)
-    cand.set_defaults(fn=cmd_candidates)
-
     un = sub.add_parser("uninstall", help="remove a persona's mechanism (keeps the store)")
     un.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     un.add_argument("--profile", action="append")
     un.set_defaults(fn=cmd_uninstall)
+    init = sub.add_parser("init", help="configure which Claude profiles receive personas")
+    init.add_argument("--profile", action="append", required=True,
+                      help="path to a Claude config dir (repeatable)")
+    init.set_defaults(fn=cmd_init)
+
+    sub.add_parser("profiles", help="show configured profiles").set_defaults(fn=cmd_profiles)
+    sub.add_parser("personas", help="show available persona definitions").set_defaults(fn=cmd_personas)
+
+    chk = sub.add_parser("check", help="validate a persona and measure its context cost")
+    chk.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    chk.set_defaults(fn=cmd_check)
+
+    pv = sub.add_parser("preview", help="print generated artefacts without installing")
+    pv.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
+    pv.add_argument("-f", "--file", help="only this artefact, e.g. SKILL.md")
+    pv.set_defaults(fn=cmd_preview)
+
     return ap
 
 
@@ -773,10 +1008,10 @@ def main(argv=None):
             print("  Not set up yet. This walks you through it:")
             print("    %s" % _paint("promptie onboard", C.ACCENT))
         else:
+            print("  %-20s %s" % (_paint("promptie list", C.BOLD),
+                                  _paint("your notes, oldest first", C.DIM)))
             print("  %-20s %s" % (_paint("promptie stats", C.BOLD),
                                   _paint("where your corrections cluster", C.DIM)))
-            print("  %-20s %s" % (_paint("promptie candidates", C.BOLD),
-                                  _paint("rules worth promoting by hand", C.DIM)))
             print("  %-20s %s" % (_paint("promptie sensitivity", C.BOLD),
                                   _paint("capture more or less often", C.DIM)))
         print()

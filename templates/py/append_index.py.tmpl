@@ -18,8 +18,6 @@ import sys
 STORE = os.path.expanduser(r"{{STORE}}")
 SCOPES = {{SCOPE_PY_LIST}}
 KINDS = {{KIND_PY_LIST}}
-PROMOTABLE = {{PROMOTABLE_PY_LIST}}
-RESTRICTIVE = "{{RESTRICTIVE_SCOPE}}"
 
 
 def fail(message):
@@ -74,13 +72,6 @@ def main(argv):
     with io.open(os.path.join(STORE, "INDEX.md"), "a", encoding="utf-8") as fh:
         fh.write(line)
 
-    # Flag, never promote. A constraint or a rationale below the most restrictive
-    # scope has the shape of a publishable principle, so it earns a line on a
-    # shortlist the human reviews. The assistant never reads this file, and
-    # nothing here moves a note anywhere -- promotion stays a human action.
-    if kind in PROMOTABLE and scope != RESTRICTIVE:
-        with io.open(os.path.join(STORE, "CANDIDATES.md"), "a", encoding="utf-8") as fh:
-            fh.write(line)
 
     sys.stdout.write("appended: %s-%s\n" % (number, slug))
     return 0

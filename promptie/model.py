@@ -27,10 +27,6 @@ COLLISION_KINDS = {
     "rationale": "why the obvious suggestion was wrong here",
 }
 
-# Kinds that are worth reviewing for promotion into a published library. A
-# correction is usually local; a constraint or a rationale is the shape of a
-# principle, so those get flagged -- flagged, never promoted.
-PROMOTABLE_KINDS = ("constraint", "rationale")
 
 # How much the human actually put in. The same observation is worth different
 # amounts depending on the evidence behind it, and conflating the three is how a
