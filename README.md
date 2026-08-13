@@ -57,7 +57,7 @@ Whenever you feel like it:
 
 ```sh
 promptie log          # your notes, oldest first
-promptie log -p       # the same list, in full
+promptie log --full   # the same list, with the notes
 promptie show 00007   # read one
 promptie grep cache   # search them
 promptie rm 00007     # prune one, index rebuilt

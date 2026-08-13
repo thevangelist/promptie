@@ -653,8 +653,8 @@ def cmd_list(args):
 
     store = Path(p.store_path)
     if args.full:
-        # The long form, like `git log -p`: the one-line summary still leads, so
-        # the two forms read as the same list at different depths.
+        # The long form. The one-line summary still leads each entry, so the two
+        # forms read as the same list at different depths.
         for row in rows:
             print()
             print("  %s  %s  %s" % (_paint(row["num"], C.BOLD), row["date"],
@@ -680,7 +680,7 @@ def cmd_list(args):
             _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
     print()
     print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
-    print(_paint("  promptie log -p   for the full text", C.DIM))
+    print(_paint("  promptie log --full   to read them", C.DIM))
     return 0
 
 
@@ -926,8 +926,10 @@ def build_parser():
     lst.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     lst.add_argument("-k", "--kind", choices=sorted(model.COLLISION_KINDS))
     lst.add_argument("-s", "--scope")
-    lst.add_argument("-p", "--full", "--patch", action="store_true",
-                     help="print each note in full, like git log -p")
+    # Spelled out, not a single letter. A flag whose meaning has to be
+    # remembered is a flag that gets looked up every time.
+    lst.add_argument("--full", action="store_true",
+                     help="print each note in full, not just the summary line")
     lst.set_defaults(fn=cmd_list)
 
     rd = sub.add_parser("show", aliases=["read", "cat"], help="print one note")

@@ -216,7 +216,7 @@ class TestCliSurface(unittest.TestCase):
                       if isinstance(a, argparse._SubParsersAction)][0]
         log = subparsers.choices["log"]
         self.assertFalse(log.parse_args([]).full, "short form is the default")
-        self.assertTrue(log.parse_args(["-p"]).full)
+        self.assertTrue(log.parse_args(["--full"]).full)
 
     def test_git_and_unix_names_keep_their_old_aliases(self):
         parser = cli.build_parser()
