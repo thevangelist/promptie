@@ -1,0 +1,18 @@
+# Editor and agent state, which is per-machine and often holds local paths.
+.claude/
+.vscode/
+.idea/
+.DS_Store
+
+# Per-project capture focus. Yours, not the repo's.
+.promptie
+
+# Legacy local profile config from before it moved to ~/.config/promptie.
+# It names this machine's Claude directories.
+promptie.json
+
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/

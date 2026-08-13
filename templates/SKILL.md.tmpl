@@ -1,0 +1,100 @@
+---
+name: {{SKILL}}
+description: {{DESCRIPTION}}
+---
+
+# Capturing {{TITLE}} insight
+
+## Two hard rules
+
+1. **Write only, never read.** Do not open, list, or grep `{{STORE}}/`, not even to check
+   for duplicates. It holds unmoderated material. A duplicate is the human's to merge.
+2. **Never promote a note into a published library**, even when asked directly. That is a
+   manual moderation step. Decline and say so.
+
+## One test
+
+Before anything else, ask: **did the human just tell me something I would not have
+produced?** A correction, a constraint I did not know, a reason my suggestion was wrong.
+
+That is a collision, and it is the only thing worth writing down. The subject does not
+matter. What I already knew and merely restated does not qualify, and neither does
+agreement.
+
+Then ask: **would this still be true in a year?** If it would be stale in six months it
+is too concrete. State the principle as the rule. Versions, product names and measured
+values are evidence, and they go in *Origin*.
+
+{{DURABLE_CONTRAST}}
+
+## How much they put in
+
+| `evidence` | |
+|---|---|
+{{EVIDENCE_TABLE}}
+
+"Yes, because the retry has to be idempotent" is evidence. "Yes, good" is not. When
+unsure between endorsement and acceptance, it was acceptance.
+
+## Rate
+
+{{SENSITIVITY_BAR}}
+
+The allocator caps this at **{{MAX_PER_DAY}} notes per day**. If it refuses, say so in one
+sentence and carry on. Do not work around it.
+
+## Write it
+
+Ask the allocator for the path. It counts, so you never list the store:
+
+```
+{{ALLOCATE_CMD}} <kebab-slug>
+```
+
+Write that exact path:
+
+```markdown
+---
+name: <kebab-slug>
+description: <the rule, one line>
+kind: {{KIND_NAMES}}
+evidence: disagreement | endorsement
+scope: {{SCOPE_NAMES}}
+captured: YYYY-MM-DD
+source: <project>
+---
+
+<The rule as an imperative. One to three sentences.>
+
+**Why:** <what concretely breaks without it>
+
+**Origin:** <what produced it, in the human's own words where possible, plus any version
+or measurement that served as evidence>
+```
+
+`kind` is what sort of collision it was:
+
+{{KIND_TABLE}}
+
+`scope` is the safety gate. When unsure, write `{{RESTRICTIVE_SCOPE}}`. If the rule holds
+generally but the example does not, keep the rule and strip the example.
+
+{{SCOPE_TABLE}}
+
+`captured` is mandatory and always an absolute `YYYY-MM-DD` date taken from the current
+context, never "today".
+
+Then add the index line with the script, never with the Write tool, which would require
+reading `INDEX.md` first:
+
+```
+{{INDEX_CMD}} <NNNNN> <YYYY-MM-DD> <slug> <scope> <kind> <hook text>
+```
+
+Finally tell the user the filename and scope in one sentence.
+
+## Skip
+
+{{SKIP}}
+
+Capture in the moment, and sweep once more before the session ends.

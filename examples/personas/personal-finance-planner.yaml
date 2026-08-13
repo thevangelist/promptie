@@ -1,0 +1,62 @@
+# An example from outside software entirely, and the plainest illustration of why
+# the third scope rung is named by the persona rather than fixed by the tool.
+#
+# Here the thing that must never leave the store is not a client or a security
+# weakness. It is a number, an account, or a person's name. Same mechanism, same
+# gate, different meaning.
+
+name: personal-finance-planner
+title: Personal finance planning
+summary: >
+  Durable principles about budgeting, timing, risk and the behaviour of money,
+  captured while planning rather than while reading advice.
+
+domain:
+  vocabulary:
+    - budgeting
+    - saving
+    - risk
+    - timing
+  occasions:
+    - a rule of thumb turns out wrong for your situation
+    - a cost proves to be recurring rather than one-off
+    - the timing of a decision matters more than its size
+    - a plan survives contact with an actual month
+    - general advice conflicts with how your income really arrives
+  triggers:
+    - capture this
+  capture_worthy:
+    - A rule that held up over a full year rather than a good month.
+    - A cost structure that behaves differently than its label suggests.
+    - Why a piece of standard advice does not apply to your circumstances.
+    - A decision whose timing mattered, with the reason it mattered.
+    - A number you keep recalculating, stated as the rule behind it.
+
+  skip:
+    - Current interest rates, prices and account terms. Those expire.
+    - Restatements of general personal finance advice.
+    - A record of what you spent, with no rule attached.
+
+durable_examples:
+  - too_specific: Moved 400 to savings on the 3rd because the rent cleared early
+    durable: >
+      Automate transfers to the day income arrives, not to a fixed date; a fixed
+      date makes every irregular month a decision
+  - too_specific: The annual insurance bill was 620 this year
+    durable: >
+      Treat any yearly bill as a monthly cost from the day it is known, or it
+      will always arrive as a surprise
+
+scope:
+  - name: universal
+    test: True for anyone, any income, any country
+  - name: contextual
+    test: Tied to a tax system, currency or life stage
+  - name: personal
+    test: >
+      Names an amount, an account, an employer, or a family member. Never leaves
+      this store.
+
+sensitivity: low
+sweep:
+  - pre_compact

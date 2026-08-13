@@ -1,0 +1,64 @@
+# The default persona, and the one most people should install.
+#
+# It declares no subject matter on purpose. The criterion is the collision
+# itself: the human said something the model would not have produced. That
+# happens in code, in slides, in a 3D print, in a travel plan, in a budget --
+# the topic is incidental, the expertise behind the correction is not.
+#
+# Install this one, prompt normally, and never think about it again. Reach for a
+# domain persona only when you want a separate store with its own vocabulary and
+# its own safety gate.
+
+name: collision
+title: Working knowledge
+summary: >
+  Whatever the human knows that the model did not, captured at the moment the two
+  disagree, regardless of subject.
+
+store: ~/.working-notes
+skill: capture-working-knowledge
+
+domain:
+  vocabulary:
+    - working-knowledge
+    - expertise
+    - judgement
+  occasions:
+    - the human corrects or overrides something you produced
+    - a constraint you did not know turns out to govern the work
+    - the human explains why an obvious approach is wrong here
+    - a preference is stated as a rule rather than a one-off
+    - experience contradicts what the documentation implies
+  triggers:
+    - capture this
+    - /c
+  capture_worthy:
+    - A correction the human made, together with the reason it was a correction.
+    - A constraint from their world that no amount of reading the code would reveal.
+    - A judgement call, and the tradeoff that decided it.
+    - A rule they state about how work should be done, phrased to outlive this task.
+    - Something true in their practice that contradicts the general advice.
+
+  skip:
+    - Anything you already knew and merely restated back to them.
+    - Facts about this task with no rule behind them, what was done, not what holds.
+    - Agreement. A collision needs two sides; being told you were right is not one.
+
+durable_example:
+  too_specific: The user wanted the export button moved left on this admin screen
+  durable: >
+    When a destructive and a routine action sit together, the routine one takes the
+    reading position; proximity to the destructive action is what causes misclicks
+
+scope:
+  - name: universal
+    test: True of any work, any field
+  - name: contextual
+    test: Tied to a practice, tool or domain
+  - name: personal
+    test: >
+      Names a person, client, employer, internal system, address, amount or private
+      project. Never leaves this store.
+
+sweep:
+  - pre_compact

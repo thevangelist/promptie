@@ -1,0 +1,27 @@
+[project]
+name = "promptie"
+version = "0.1.0"
+description = "Zero-dependency, write-only knowledge capture for Claude Code sessions."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["claude", "claude-code", "knowledge-capture", "notes", "hooks"]
+
+# Deliberately empty, and part of the design: the generated runtime is pure
+# standard library, so a capture hook can never break because a dependency moved.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/thevangelist/promptie"
+
+[project.scripts]
+promptie = "promptie.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# The templates are data the generator reads at run time, so they ship with the
+# package rather than living only in the source checkout.
+[tool.hatch.build.targets.wheel]
+packages = ["promptie", "templates", "personas"]

@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Run promptie straight from a checkout, with nothing installed.
+
+For people who would rather not install anything: `./bin/promptie install collision`
+does the same as the installed `promptie` command.
+"""
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from promptie.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(main())
