@@ -651,6 +651,26 @@ def cmd_list(args):
     if args.scope:
         rows = [r for r in rows if r["scope"] == args.scope]
 
+    store = Path(p.store_path)
+    if args.full:
+        # The long form, like `git log -p`: the one-line summary still leads, so
+        # the two forms read as the same list at different depths.
+        for row in rows:
+            print()
+            print("  %s  %s  %s" % (_paint(row["num"], C.BOLD), row["date"],
+                                    _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
+            note = store / ("%s-%s.md" % (row["num"], row["slug"]))
+            if not note.exists():
+                print(_paint("    (file missing: %s)" % note.name, C.WARN))
+                continue
+            body = note.read_text(encoding="utf-8")
+            body = body.split("---", 2)[-1].strip() if body.startswith("---") else body
+            for line in body.splitlines():
+                print("    %s" % line)
+        print()
+        print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
+        return 0
+
     width = max(len(r["hook"]) for r in rows)
     for row in rows:
         print("  %s  %s  %s  %s" % (
@@ -660,6 +680,7 @@ def cmd_list(args):
             _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
     print()
     print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
+    print(_paint("  promptie log -p   for the full text", C.DIM))
     return 0
 
 
@@ -905,6 +926,8 @@ def build_parser():
     lst.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     lst.add_argument("-k", "--kind", choices=sorted(model.COLLISION_KINDS))
     lst.add_argument("-s", "--scope")
+    lst.add_argument("-p", "--full", "--patch", action="store_true",
+                     help="print each note in full, like git log -p")
     lst.set_defaults(fn=cmd_list)
 
     rd = sub.add_parser("show", aliases=["read", "cat"], help="print one note")

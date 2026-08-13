@@ -210,6 +210,23 @@ class TestCliSurface(unittest.TestCase):
             self.assertTrue(callable(sub.get_default("fn")),
                             "%s has no handler" % name)
 
+    def test_log_has_both_a_short_and_a_full_form(self):
+        parser = cli.build_parser()
+        subparsers = [a for a in parser._actions
+                      if isinstance(a, argparse._SubParsersAction)][0]
+        log = subparsers.choices["log"]
+        self.assertFalse(log.parse_args([]).full, "short form is the default")
+        self.assertTrue(log.parse_args(["-p"]).full)
+
+    def test_git_and_unix_names_keep_their_old_aliases(self):
+        parser = cli.build_parser()
+        subparsers = [a for a in parser._actions
+                      if isinstance(a, argparse._SubParsersAction)][0]
+        for old, new in (("list", "log"), ("read", "show"), ("search", "grep"),
+                         ("doctor", "status")):
+            self.assertIn(old, subparsers.choices, "%s alias vanished" % old)
+            self.assertIs(subparsers.choices[old], subparsers.choices[new])
+
     def test_preview_renders_every_artefact_it_lists(self):
         for attr in ("skill_md", "new_note_py", "append_index_py", "hooks_py",
                      "store_readme"):
