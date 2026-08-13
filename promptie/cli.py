@@ -651,26 +651,6 @@ def cmd_list(args):
     if args.scope:
         rows = [r for r in rows if r["scope"] == args.scope]
 
-    store = Path(p.store_path)
-    if args.full:
-        # The long form. The one-line summary still leads each entry, so the two
-        # forms read as the same list at different depths.
-        for row in rows:
-            print()
-            print("  %s  %s  %s" % (_paint(row["num"], C.BOLD), row["date"],
-                                    _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
-            note = store / ("%s-%s.md" % (row["num"], row["slug"]))
-            if not note.exists():
-                print(_paint("    (file missing: %s)" % note.name, C.WARN))
-                continue
-            body = note.read_text(encoding="utf-8")
-            body = body.split("---", 2)[-1].strip() if body.startswith("---") else body
-            for line in body.splitlines():
-                print("    %s" % line)
-        print()
-        print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
-        return 0
-
     width = max(len(r["hook"]) for r in rows)
     for row in rows:
         print("  %s  %s  %s  %s" % (
@@ -680,7 +660,7 @@ def cmd_list(args):
             _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
     print()
     print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
-    print(_paint("  promptie log --full   to read them", C.DIM))
+    print(_paint("  promptie read   to read them", C.DIM))
     return 0
 
 
@@ -700,19 +680,42 @@ def _find_note(store: Path, ident: str):
 
 
 def cmd_read(args):
-    """Print one note.
+    """Read the notes. All of them, or one.
 
-    The write-only rule binds the assistant, not you. Without a way to read a
-    note from here, `list` is a dead end: you see a line worth following and have
-    to go find the file yourself.
+    One verb, narrowed by its argument, rather than a command plus a flag whose
+    meaning has to be remembered. The write-only rule binds the assistant, not
+    you: without this, `list` is a dead end.
     """
     p = _load(args.persona)
-    path = _find_note(Path(p.store_path), args.note)
+    store = Path(p.store_path)
+
+    if args.note:
+        path = _find_note(store, args.note)
+        print()
+        print(_paint(path.name, C.DIM))
+        print()
+        print(path.read_text(encoding="utf-8").rstrip())
+        print()
+        return 0
+
+    rows = _index_rows(store)
+    if not rows:
+        print("no notes yet in %s" % p.store)
+        return 0
+    for row in rows:
+        note = store / ("%s-%s.md" % (row["num"], row["slug"]))
+        print()
+        print("  %s  %s  %s" % (_paint(row["num"], C.BOLD), row["date"],
+                                _paint("%s %s" % (row["kind"], row["scope"]), C.DIM)))
+        if not note.exists():
+            print(_paint("    (file missing: %s)" % note.name, C.WARN))
+            continue
+        body = note.read_text(encoding="utf-8")
+        body = body.split("---", 2)[-1].strip() if body.startswith("---") else body
+        for line in body.splitlines():
+            print("    %s" % line)
     print()
-    print(_paint(path.name, C.DIM))
-    print()
-    print(path.read_text(encoding="utf-8").rstrip())
-    print()
+    print("  %d note%s in %s" % (len(rows), "" if len(rows) == 1 else "s", p.store))
     return 0
 
 
@@ -921,30 +924,28 @@ def build_parser():
     doc.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     doc.set_defaults(fn=cmd_doctor)
 
-    lst = sub.add_parser("log", aliases=["list", "ls"],
-                         help="your notes, oldest first")
+    lst = sub.add_parser("list", aliases=["log", "ls"],
+                         help="one line per note, oldest first")
     lst.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     lst.add_argument("-k", "--kind", choices=sorted(model.COLLISION_KINDS))
     lst.add_argument("-s", "--scope")
-    # Spelled out, not a single letter. A flag whose meaning has to be
-    # remembered is a flag that gets looked up every time.
-    lst.add_argument("--full", action="store_true",
-                     help="print each note in full, not just the summary line")
     lst.set_defaults(fn=cmd_list)
 
-    rd = sub.add_parser("show", aliases=["read", "cat"], help="print one note")
-    rd.add_argument("note", help="id, or part of the slug")
+    rd = sub.add_parser("read", aliases=["show", "cat"],
+                        help="read the notes, all of them or one")
+    rd.add_argument("note", nargs="?", help="id or part of a slug; omit to read them all")
     rd.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     rd.set_defaults(fn=cmd_read)
 
-    se = sub.add_parser("grep", aliases=["search"],
+    se = sub.add_parser("search", aliases=["grep", "find"],
                         help="search across your notes")
     se.add_argument("query")
     se.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     se.add_argument("-c", "--context", type=int, default=3, help="lines shown per note")
     se.set_defaults(fn=cmd_search)
 
-    rm = sub.add_parser("rm", help="delete a note and rebuild the index")
+    rm = sub.add_parser("forget", aliases=["rm"],
+                        help="delete a note and rebuild the index")
     rm.add_argument("note", help="id, or part of the slug")
     rm.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     rm.add_argument("-y", "--yes", action="store_true", help="skip the confirmation")

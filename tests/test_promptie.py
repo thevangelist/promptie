@@ -210,20 +210,21 @@ class TestCliSurface(unittest.TestCase):
             self.assertTrue(callable(sub.get_default("fn")),
                             "%s has no handler" % name)
 
-    def test_log_has_both_a_short_and_a_full_form(self):
+    def test_read_takes_all_notes_or_one(self):
+        """One verb narrowed by its argument, rather than a verb plus a flag."""
         parser = cli.build_parser()
         subparsers = [a for a in parser._actions
                       if isinstance(a, argparse._SubParsersAction)][0]
-        log = subparsers.choices["log"]
-        self.assertFalse(log.parse_args([]).full, "short form is the default")
-        self.assertTrue(log.parse_args(["--full"]).full)
+        read = subparsers.choices["read"]
+        self.assertIsNone(read.parse_args([]).note, "no argument means all of them")
+        self.assertEqual("00007", read.parse_args(["00007"]).note)
 
     def test_git_and_unix_names_keep_their_old_aliases(self):
         parser = cli.build_parser()
         subparsers = [a for a in parser._actions
                       if isinstance(a, argparse._SubParsersAction)][0]
-        for old, new in (("list", "log"), ("read", "show"), ("search", "grep"),
-                         ("doctor", "status")):
+        for old, new in (("log", "list"), ("show", "read"), ("grep", "search"),
+                         ("rm", "forget"), ("doctor", "status")):
             self.assertIn(old, subparsers.choices, "%s alias vanished" % old)
             self.assertIs(subparsers.choices[old], subparsers.choices[new])
 

@@ -56,16 +56,16 @@ You prompt normally. When a capture happens you see one line:
 Whenever you feel like it:
 
 ```sh
-promptie log          # your notes, oldest first
-promptie log --full   # the same list, with the notes
-promptie show 00007   # read one
-promptie grep cache   # search them
-promptie rm 00007     # prune one, index rebuilt
+promptie list         # one line per note, oldest first
+promptie read         # read them all, in order
+promptie read 00007   # read one
+promptie search cache # find the ones that mention it
+promptie forget 00007 # prune one, index rebuilt
 promptie status       # is capture actually live
 ```
 
-The verbs are git's and unix's on purpose. This is an append-only, ordered store,
-so it may as well read like one.
+Plain verbs, and the argument narrows the verb rather than a flag doing it. `read`
+with nothing reads everything.
 
 Too much or too little:
 
