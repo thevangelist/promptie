@@ -47,20 +47,43 @@ def counted_today():
     counter never risks touching a note.
     """
     path = os.path.join(STATE_DIR, "{{NAME}}-%s.count" % datetime.date.today().isoformat())
+    used = 0
     try:
         with open(path, "r", encoding="utf-8") as fh:
-            return int(fh.read().strip() or 0), path
+            used = int(fh.read().strip() or 0)
     except (IOError, OSError, ValueError):
-        return 0, path
-
-
-def bump(path, value):
+        pass
     try:
-        os.makedirs(STATE_DIR, exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write(str(value))
+        prefix = os.path.basename(path) + "."
+        for name in os.listdir(STATE_DIR):
+            if name.startswith(prefix) and name.endswith(".slot"):
+                number = name[len(prefix):-len(".slot")]
+                if number.isdigit():
+                    used = max(used, int(number))
     except (IOError, OSError):
-        pass  # A missing counter must never block a capture.
+        pass
+    return used, path
+
+
+def claim_daily_slot():
+    """Atomically enforce the cap across concurrent sessions."""
+    os.makedirs(STATE_DIR, exist_ok=True)
+    while True:
+        used, counter_path = counted_today()
+        if MAX_PER_DAY and used >= MAX_PER_DAY:
+            fail(
+                "capture cap reached for today (%d/%d). Nothing was written. "
+                "Tell the user the insight is worth keeping but the cap is hit; they can "
+                "raise `max_per_day` in the persona, or clear %s."
+                % (used, MAX_PER_DAY, counter_path)
+            )
+        slot = "%s.%d.slot" % (counter_path, used + 1)
+        try:
+            fd = os.open(slot, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            continue
+        os.close(fd)
+        return
 
 
 DECIMAL_MAX = 99999
@@ -86,6 +109,19 @@ def decode(text):
     return DECIMAL_MAX + 1 + (ord(text[0]) - ord("A")) * LETTER_BLOCK + int(text[1:])
 
 
+def reserve(slug, highest):
+    """Atomically claim a path, even when several sessions allocate at once."""
+    while True:
+        highest += 1
+        path = os.path.join(STORE, "%s-%s.md" % (encode(highest), slug))
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            continue
+        os.close(fd)
+        return path
+
+
 def main(argv):
     if len(argv) != 2:
         fail("usage: new_note.py <kebab-slug>")
@@ -94,14 +130,7 @@ def main(argv):
     if not SLUG_RE.match(slug):
         fail("slug must be lower-case kebab-case, got: %s" % slug)
 
-    used, counter_path = counted_today()
-    if MAX_PER_DAY and used >= MAX_PER_DAY:
-        fail(
-            "capture cap reached for today (%d/%d). Nothing was written. "
-            "Tell the user the insight is worth keeping but the cap is hit; they can "
-            "raise `max_per_day` in the persona, or clear %s."
-            % (used, MAX_PER_DAY, counter_path)
-        )
+    claim_daily_slot()
 
     os.makedirs(STORE, exist_ok=True)
     highest = 0
@@ -110,8 +139,8 @@ def main(argv):
         if match:
             highest = max(highest, decode(match.group(1)))
 
-    bump(counter_path, used + 1)
-    sys.stdout.write(os.path.join(STORE, "%s-%s.md" % (encode(highest + 1), slug)) + "\n")
+    path = reserve(slug, highest)
+    sys.stdout.write(path + "\n")
     return 0
 
 

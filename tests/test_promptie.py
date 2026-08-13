@@ -328,6 +328,36 @@ class TestEndToEnd(unittest.TestCase):
         second = self._run(alloc, "second-note").stdout.strip()
         self.assertTrue(second.endswith("00002-second-note.md"), second)
 
+    def test_concurrent_allocators_reserve_distinct_paths(self):
+        p = model.Persona(dict(miniyaml.load_file(str(COLLISION)), max_per_day=0),
+                          path=str(COLLISION))
+        installer.install(p, self.profile)
+        alloc = installer.skill_dir(p, self.profile) / "new_note.py"
+        processes = [subprocess.Popen([sys.executable, str(alloc), "same-slug"],
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      text=True)
+                     for _ in range(8)]
+        results = [process.communicate() for process in processes]
+        paths = [stdout.strip() for stdout, _ in results]
+
+        self.assertTrue(all(process.returncode == 0 for process in processes), results)
+        self.assertEqual(8, len(set(paths)), paths)
+        self.assertTrue(all(Path(path).exists() for path in paths))
+
+    def test_daily_cap_holds_across_concurrent_allocators(self):
+        p = model.Persona(dict(miniyaml.load_file(str(COLLISION)), max_per_day=2),
+                          path=str(COLLISION))
+        installer.install(p, self.profile)
+        alloc = installer.skill_dir(p, self.profile) / "new_note.py"
+        processes = [subprocess.Popen([sys.executable, str(alloc), "capped"],
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      text=True)
+                     for _ in range(8)]
+        results = [process.communicate() for process in processes]
+
+        self.assertEqual(2, sum(process.returncode == 0 for process in processes), results)
+        self.assertTrue(all(process.returncode in (0, 2) for process in processes), results)
+
     def test_allocator_rejects_a_bad_slug(self):
         installer.install(self.p, self.profile)
         alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"

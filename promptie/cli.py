@@ -315,8 +315,10 @@ def cmd_onboard(args):
         "**Why:** %s\n\n**Origin:** Written during promptie onboarding.\n"
         % (slug, rule, kind, scope, today, rule, why or "(not stated)"),
         encoding="utf-8")
-    subprocess.run([exe, str(sdir / "append_index.py"), number, today, slug,
-                    scope, kind, rule[:60]], capture_output=True, text=True)
+    indexed = subprocess.run([exe, str(sdir / "append_index.py"), number, today, slug,
+                              scope, kind, rule[:60]], capture_output=True, text=True)
+    if indexed.returncode != 0:
+        raise SystemExit(indexed.stderr.strip() or "failed to add the first note to the index")
 
     payload = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(path)}})
     shown = subprocess.run([exe, str(hooks), "notify"], input=payload,
