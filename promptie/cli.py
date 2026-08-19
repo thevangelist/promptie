@@ -822,9 +822,10 @@ def cmd_doctor(args):
                   p.name.replace("-", "_") in hooks)
 
         allow = settings.get("permissions", {}).get("allow", [])
-        writes = [e for e in allow if e.startswith(("Write(", "Edit("))
-                  and p.store_path in e]
-        check("store pre-authorised", len(writes) == 2,
+        # An Edit rule covers every file-editing tool, so one is what install
+        # writes and one is what this looks for. A Write rule matches nothing.
+        writes = [e for e in allow if e.startswith("Edit(") and p.store_path in e]
+        check("store pre-authorised", len(writes) == 1,
               "without this every capture asks permission")
         check("permission paths absolute", all(e.split("(")[1].startswith("//") for e in writes))
 

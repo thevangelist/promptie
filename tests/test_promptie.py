@@ -273,6 +273,18 @@ class TestEndToEnd(unittest.TestCase):
         self.assertTrue((self.profile_dir / "hooks" / "collision_capture_hooks.py").exists())
         self.assertTrue((Path(self.p.store_path) / "INDEX.md").exists())
 
+    def test_status_accepts_what_install_actually_writes(self):
+        """A doctor that fails a healthy install is worse than no doctor.
+
+        The two sides count permission rules independently, so changing one
+        without the other reports capture as broken while it works fine.
+        """
+        installer.install(self.p, self.profile)
+        allow = self._settings()["permissions"]["allow"]
+        store_rules = [e for e in allow
+                       if e.startswith("Edit(") and self.p.store_path in e]
+        self.assertEqual(1, len(store_rules))
+
     def test_install_registers_hooks_and_permissions(self):
         installer.install(self.p, self.profile)
         settings = self._settings()
