@@ -440,7 +440,8 @@ class TestEndToEnd(unittest.TestCase):
         store = Path(self.p.store_path)
         store.mkdir(parents=True, exist_ok=True)
         (store / ("%s-%s.md" % (number, slug))).write_text(
-            "---\nname: %s\ncaptured: %s\nevidence: %s\n---\n\nThe rule.\n"
+            "---\nname: %s\ncaptured: %s\nevidence: %s\n---\n\nThe rule.\n\n"
+            "**Why:** what breaks without it\n\n**Origin:** where it came from\n"
             % (slug, date, evidence), encoding="utf-8")
 
     def test_index_line_carries_kind_and_scope(self):
@@ -462,6 +463,48 @@ class TestEndToEnd(unittest.TestCase):
             "`universal` - `disagreement` - a rule from after\n", encoding="utf-8")
         rows = cli._index_rows(store)
         self.assertEqual(["-", "disagreement"], [r["evidence"] for r in rows])
+
+    def _bare_note(self, number, slug, body):
+        store = Path(self.p.store_path)
+        store.mkdir(parents=True, exist_ok=True)
+        (store / ("%s-%s.md" % (number, slug))).write_text(
+            "---\nname: %s\ncaptured: 2026-01-01\nevidence: disagreement\n---\n\n%s"
+            % (slug, body), encoding="utf-8")
+
+    def _index(self, slug):
+        return self._run(installer.skill_dir(self.p, self.profile) / "append_index.py",
+                         "00001", "2026-01-01", slug, "universal", "constraint",
+                         "disagreement", "hook")
+
+    def test_a_note_without_its_reasons_is_refused(self):
+        installer.install(self.p, self.profile)
+        self._bare_note("00001", "no-reason", "The rule and nothing else.\n")
+        refused = self._index("no-reason")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("**Why:**", refused.stderr)
+
+    def test_an_empty_reason_line_is_refused(self):
+        installer.install(self.p, self.profile)
+        self._bare_note("00001", "empty-why",
+                        "The rule.\n\n**Why:**\n\n**Origin:** somewhere\n")
+        refused = self._index("empty-why")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("empty", refused.stderr.lower())
+
+    def test_a_missing_origin_is_refused(self):
+        installer.install(self.p, self.profile)
+        self._bare_note("00001", "no-origin", "The rule.\n\n**Why:** it breaks\n")
+        refused = self._index("no-origin")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("**Origin:**", refused.stderr)
+
+    def test_reasons_are_found_beyond_the_frontmatter_window(self):
+        installer.install(self.p, self.profile)
+        # The frontmatter check reads a short head; the reasons sit well past it.
+        self._bare_note("00001", "long-note",
+                        "The rule. " + ("padding " * 120) +
+                        "\n\n**Why:** it breaks\n\n**Origin:** they said so\n")
+        self.assertEqual(0, self._index("long-note").returncode)
 
     def test_index_line_carries_the_evidence(self):
         installer.install(self.p, self.profile)

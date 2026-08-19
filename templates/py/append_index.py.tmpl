@@ -19,6 +19,13 @@ STORE = os.path.expanduser(r"{{STORE}}")
 SCOPES = {{SCOPE_PY_LIST}}
 KINDS = {{KIND_PY_LIST}}
 EVIDENCES = {{EVIDENCE_PY_LIST}}
+
+# A rule without its reason is a rule nobody can weigh later. Both lines are
+# required and both must say something.
+REASONS = (
+    ("Why", "It is what concretely breaks without the rule."),
+    ("Origin", "It is what produced the rule, in the human's own words where possible."),
+)
 PROMOTABLE = {{PROMOTABLE_PY_LIST}}
 RESTRICTIVE = "{{RESTRICTIVE_SCOPE}}"
 
@@ -59,7 +66,8 @@ def main(argv):
     note = os.path.join(STORE, "%s-%s.md" % (number, slug))
     if os.path.exists(note):
         with io.open(note, "r", encoding="utf-8") as fh:
-            head = fh.read(400)
+            body = fh.read()
+        head = body[:400]
         if ("captured: %s" % date) not in head:
             fail("note %s-%s.md is missing 'captured: %s' in its frontmatter. "
                  "Add it, then run this again. Every note carries the date it "
@@ -69,6 +77,18 @@ def main(argv):
                  "Add it, then run this again. How much the human put in is part "
                  "of the note, not just of the index line."
                  % (number, slug, evidence))
+        # The rule is the cheap half. What breaks without it, and what produced
+        # it, are what make the note readable a year from now by someone who was
+        # not in the session -- and they are the first thing to get dropped when
+        # the note is written in a hurry. Nothing checked them until now.
+        for marker, why_it_matters in REASONS:
+            match = re.search(r"^\*\*%s:\*\*(.*)$" % marker, body, re.MULTILINE)
+            if match is None:
+                fail("note %s-%s.md has no '**%s:**' line. Add it, then run this "
+                     "again. %s" % (number, slug, marker, why_it_matters))
+            if not match.group(1).strip():
+                fail("note %s-%s.md has an empty '**%s:**' line. Fill it in, then "
+                     "run this again. %s" % (number, slug, marker, why_it_matters))
     else:
         fail("no note at %s. Write the note first, then add the index line."
              % note)

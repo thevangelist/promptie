@@ -89,6 +89,10 @@ generally but the example does not, keep the rule and strip the example.
 context, never "today". `evidence` must match what you told the allocator -- the index
 script checks the note and refuses the line if the two disagree.
 
+**Why** and **Origin** are both required and both checked. A rule without the reason it
+exists is a rule nobody can weigh a year from now, so the index script refuses a note
+that leaves either one out or empty.
+
 Then add the index line with the script, never with the Write tool, which would require
 reading `INDEX.md` first:
 
