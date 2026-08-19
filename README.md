@@ -79,6 +79,11 @@ Five levels: `minimal` 1, `low` 3, `normal` 6, `high` 12, `extreme` 40 notes a d
 The level sets the judgement bar written into the skill; the cap is enforced by the
 allocator, which refuses and says so rather than writing quietly.
 
+The cap prices the evidence rather than counting the notes. A correction you actually
+pushed back on is never rationed, however full the day already is. A bare "yes, good" is
+refused outright, because agreement is not a collision. Only the middle case — approval
+that carries a reason — spends the cap.
+
 Off, when a session is throwaway:
 
 ```sh

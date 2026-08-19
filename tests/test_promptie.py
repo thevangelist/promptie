@@ -278,16 +278,19 @@ class TestEndToEnd(unittest.TestCase):
         settings = self._settings()
         for event in ("SessionStart", "PostToolUse", "PreCompact"):
             self.assertIn(event, settings["hooks"], "no %s hook" % event)
-        self.assertEqual(4, len(settings["permissions"]["allow"]))
+        # two Bash rules for the scripts, one Edit rule for the store
+        self.assertEqual(3, len(settings["permissions"]["allow"]))
 
     def test_file_permissions_use_the_absolute_path_form(self):
         installer.install(self.p, self.profile)
         allow = self._settings()["permissions"]["allow"]
-        for verb in ("Write", "Edit"):
-            rule = [e for e in allow if e.startswith(verb + "(")]
-            self.assertEqual(1, len(rule), "no single %s rule" % verb)
-            self.assertTrue(rule[0].startswith("%s(//" % verb),
-                            "%s rule is not absolute: %s" % (verb, rule[0]))
+        rule = [e for e in allow if e.startswith("Edit(")]
+        self.assertEqual(1, len(rule), "no single Edit rule")
+        self.assertTrue(rule[0].startswith("Edit(//"),
+                        "Edit rule is not absolute: %s" % rule[0])
+        # An Edit rule already covers Write; a Write rule matches nothing and
+        # the client warns about it every startup.
+        self.assertEqual([], [e for e in allow if e.startswith("Write(")])
 
     def test_install_is_idempotent(self):
         installer.install(self.p, self.profile)

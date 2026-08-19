@@ -105,11 +105,13 @@ def _permission_entries(p: Persona, sdir: Path) -> List[str]:
     read as relative to the project root, which silently fails to match a store
     that lives in the home directory, and every capture then prompts.
 
-    Both Write and Edit are granted: the first note to a path is a Write, and a
-    correction to one the human asked for is an Edit.
+    Only an Edit rule is granted. Claude Code matches file permissions against
+    Edit rules alone, and an Edit rule covers every file-editing tool including
+    Write -- so a Write rule never matches anything and the client warns about
+    it on every startup. Granting both looked safer and was only noise.
     """
     store = "//%s/**" % p.store_path.lstrip("/")
-    file_rules = ["Write(%s)" % store, "Edit(%s)" % store]
+    file_rules = ["Edit(%s)" % store]
     exe = runtime_python()
     return [
         "Bash(%s %s/new_note.py *)" % (exe, sdir),
