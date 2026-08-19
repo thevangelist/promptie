@@ -1,0 +1,63 @@
+# A craft whose knowledge is almost entirely local and almost entirely oral. The
+# books describe a climate that is not yours, and the beekeeper down the road knows
+# things about this valley that were never written down anywhere.
+#
+# The private rung here is not a person or a number. It is a location: apiary sites
+# are given in confidence by landowners, and a hive that can be found is a hive that
+# can be stolen. Same gate, different reason for it.
+
+name: beekeeping
+title: Beekeeping
+summary: >
+  Durable judgement about colonies, seasons and forage, captured when the hive
+  contradicts what the manual said it would do.
+
+domain:
+  vocabulary:
+    - colony
+    - forage
+    - overwintering
+    - swarming
+  occasions:
+    - the calendar in the book disagrees with what the colony is doing
+    - a local forage source turns out to drive the season
+    - an intervention makes things worse and the reason becomes clear
+    - a colony survives or dies for a reason worth stating as a rule
+    - experienced advice contradicts the published guidance
+  triggers:
+    - capture this
+  capture_worthy:
+    - A rule tied to what the colony is doing rather than to a date.
+    - A local forage or weather pattern that decides the season here.
+    - An intervention that reliably backfires, and the mechanism behind it.
+    - A sign you learned to read before the problem became obvious.
+    - Why standard guidance fails at this latitude, altitude or climate.
+
+  skip:
+    - This year's weather, yields and inspection notes. Those are a logbook.
+    - Restatements of the beginner's manual.
+    - What you did to one hive on one day, with no rule behind it.
+
+durable_examples:
+  - too_specific: Hive 3 was boiling over with bees on the 12th so I split it
+    durable: >
+      Read swarm pressure from comb space and queen cells, never from the date;
+      a calendar-driven split is early most years and late in the one that matters
+  - too_specific: Fed the two weak colonies syrup in late September
+    durable: >
+      Decide autumn feeding by stores weight, not by the month; a warm autumn
+      keeps bees flying and eating long after the feeding window closed
+
+scope:
+  - name: universal
+    test: True of colonies anywhere, any climate
+  - name: contextual
+    test: Tied to a climate, a race of bee, or a style of hive
+  - name: personal
+    test: >
+      Names an apiary site, a landowner, a buyer, or anything that would let a
+      hive be found. Never leaves this store.
+
+sensitivity: low
+sweep:
+  - pre_compact

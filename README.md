@@ -81,8 +81,8 @@ allocator, which refuses and says so rather than writing quietly.
 
 The cap prices the evidence rather than counting the notes. A correction you actually
 pushed back on is never rationed, however full the day already is. A bare "yes, good" is
-refused outright, because agreement is not a collision. Only the middle case — approval
-that carries a reason — spends the cap.
+refused outright, because agreement is not a collision. Only the middle case spends the
+cap: approval that carries a reason.
 
 Off, when a session is throwaway:
 
@@ -90,6 +90,37 @@ Off, when a session is throwaway:
 export PROMPTIE_DISABLE=1     # this shell
 touch .promptieignore         # this directory tree
 ```
+
+## Personas
+
+A persona is one YAML file describing what a store is for: the occasions worth
+capturing, what to skip, the three scope rungs, how eagerly to write, and the wording of
+the skill itself. Everything installed is rendered from it: the skill, the hooks, the
+scripts, the permissions. Nothing is hand-written.
+
+You are unlikely to need a second one. `collision` is the default and it declares no
+subject at all: the criterion is the disagreement, so it works the same in code, in a
+slide deck or in a budget.
+
+Reach for a second persona when you want a **separate store**: its own directory, its
+own vocabulary, its own scope gate, its own daily cap. Client work kept apart from
+personal notes, say, or a domain whose private rung means something stricter.
+
+```sh
+promptie personas            # what is available
+promptie check finance       # validate one, and measure its context cost
+promptie preview finance     # print what it would install, without installing
+promptie install finance     # its own skill, its own store
+```
+
+Every command takes a persona name as its first argument, defaulting to `collision`, so
+`promptie list finance` reads that store and nothing else.
+
+To write one, copy [`examples/personas/personal-finance-planner.yaml`](examples/personas/personal-finance-planner.yaml)
+into `~/.config/promptie/personas/` and edit it. That directory is searched first, so a
+file there shadows a packaged persona of the same name. `promptie check` tells you
+whether it is valid and whether its description fits the context budget it is charged
+against on every turn.
 
 ## What it will never do
 

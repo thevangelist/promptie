@@ -1,0 +1,63 @@
+# A trade where the knowledge lives in the crew and almost never in writing. Every
+# venue behaves differently, the manual describes the equipment rather than the room,
+# and the person who knows why this rig always hums left the company two tours ago.
+#
+# The private rung here is commercial. Venue quirks, rider terms and what a promoter
+# actually paid for are somebody else's business, and naming them turns a useful note
+# into a liability.
+
+name: stage-production
+title: Live stage production
+summary: >
+  Durable craft judgement about lighting, sound and staging, captured when the room
+  disagrees with the plan that was drawn for it.
+
+domain:
+  vocabulary:
+    - rigging
+    - front of house
+    - load-in
+    - cue
+  occasions:
+    - a room behaves nothing like the drawing said it would
+    - a fix that works everywhere fails in one class of venue
+    - the running order changes what the technical plan can assume
+    - a piece of kit reveals a limit the spec sheet does not mention
+    - an experienced hand overrules the documented procedure
+  triggers:
+    - capture this
+  capture_worthy:
+    - A rule about how a room behaves, stated so it transfers to the next room.
+    - A limit of the equipment that its documentation does not admit to.
+    - An ordering constraint in load-in or cueing, with the failure it prevents.
+    - A safety judgement that overrides convenience, and the reason it does.
+    - Why the standard procedure is wrong for this scale or this format.
+
+  skip:
+    - Tonight's patch list, cue sheet or channel assignments. Those are paperwork.
+    - Restatements of the manufacturer manual.
+    - What went wrong at one show, with no rule drawn from it.
+
+durable_examples:
+  - too_specific: The delay stack in that hall needed 18ms more than the software said
+    durable: >
+      Time-align delays by ear from the seat that pays the least, not from the
+      predicted distance; the prediction assumes a ceiling the room does not have
+  - too_specific: We flew the upstage truss before the video wall arrived and had to drop it
+    durable: >
+      Rig in the order things must come out, not the order they arrive; anything
+      flown above a later delivery buys a second load-in nobody costed
+
+scope:
+  - name: universal
+    test: True of any room, any scale, any format
+  - name: contextual
+    test: Tied to a class of venue, a discipline or a size of production
+  - name: personal
+    test: >
+      Names a venue, a promoter, an artist, a rider term or a fee. Never leaves
+      this store.
+
+sensitivity: normal
+sweep:
+  - pre_compact
