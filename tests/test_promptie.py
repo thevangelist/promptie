@@ -140,6 +140,14 @@ class TestPersona(unittest.TestCase):
         with self.assertRaises(model.PersonaError):
             model.Persona(_minimal(collision_kinds=["correction", "vibes"]))
 
+    def test_promotable_kinds_are_limited_to_what_the_persona_declares(self):
+        p = model.Persona(_minimal(collision_kinds=["correction", "constraint"]))
+        self.assertEqual(["constraint"], p.promotable_kinds)
+
+    def test_a_persona_can_declare_no_promotable_kinds(self):
+        p = model.Persona(_minimal(collision_kinds=["correction", "override"]))
+        self.assertEqual([], p.promotable_kinds)
+
     def test_description_budget_is_reported_not_silently_exceeded(self):
         wordy = _minimal()
         wordy["domain"]["occasions"] = ["a very long occasion clause " * 30]
@@ -409,6 +417,35 @@ class TestEndToEnd(unittest.TestCase):
         bad_scope = self._run(index, "00001", "2026-01-01", "s", "cosmic", "constraint", "h")
         self.assertNotEqual(0, bad_kind.returncode)
         self.assertNotEqual(0, bad_scope.returncode)
+
+    def _candidates(self):
+        path = Path(self.p.store_path) / "CANDIDATES.md"
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    def test_a_promotable_kind_is_shortlisted(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "a-rule")
+        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "hook")
+        self.assertIn("a-rule", self._candidates())
+
+    def test_the_shortlist_skips_one_off_kinds_and_the_restrictive_scope(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "a-correction")
+        self._note("00002", "a-private-rule")
+        # A correction is tied to what it corrected, so it never generalises.
+        self._run(index, "00001", "2026-01-01", "a-correction", "universal", "correction", "h")
+        # The most restrictive scope never leaves the store, shortlist included.
+        self._run(index, "00002", "2026-01-01", "a-private-rule", "private", "constraint", "h")
+        self.assertEqual("", self._candidates())
+
+    def test_shortlisting_never_moves_a_note(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "a-rule")
+        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "hook")
+        self.assertTrue((Path(self.p.store_path) / "00001-a-rule.md").exists())
 
     def _hooks(self):
         return self.profile_dir / "hooks" / "collision_capture_hooks.py"

@@ -27,6 +27,13 @@ COLLISION_KINDS = {
     "rationale": "why the obvious suggestion was wrong here",
 }
 
+# Kinds whose notes have the shape of a publishable principle. A correction is
+# tied to the thing it corrected and an override is deliberately a one-off, so
+# neither generalises; a constraint and a rationale can. Notes of these kinds get
+# a line on a shortlist the human reviews -- flagged, never promoted. Promotion
+# out of the store stays a human action, as the store README says.
+PROMOTABLE_KINDS = ("constraint", "rationale")
+
 
 # How much the human actually put in. The same observation is worth different
 # amounts depending on the evidence behind it, and conflating the three is how a
@@ -151,6 +158,8 @@ class Persona:
         if unknown:
             raise PersonaError("unknown collision_kinds: %s (known: %s)"
                                % (", ".join(sorted(unknown)), ", ".join(COLLISION_KINDS)))
+        # Only the kinds this persona actually declares can reach the shortlist.
+        self.promotable_kinds = [k for k in self.collision_kinds if k in PROMOTABLE_KINDS]
 
         # Scope gate. Exactly three levels, most restrictive last.
         levels = data.get("scope") or []
