@@ -1,0 +1,63 @@
+# The most realistic reason to want a second store: client work that must not mix
+# with your own notes.
+#
+# The default `collision` persona already captures design decisions perfectly well.
+# What this one adds is a separate directory and a private rung that names the client
+# rather than a person, so a rule learned on one engagement can be kept without
+# carrying the account it came from.
+
+name: design-systems
+title: Design systems work
+summary: >
+  Durable rules about tokens, components and visual consistency, captured when the
+  implemented system contradicts what the design intended.
+
+domain:
+  vocabulary:
+    - design tokens
+    - components
+    - accessibility
+  occasions:
+    - a token encodes a decision nobody recorded
+    - a component behaves differently in production than in the library
+    - a guideline written for print fails on screen
+    - an accessibility requirement forces a visual rule
+    - a framework default contradicts the design intent
+  triggers:
+    - capture this
+  capture_worthy:
+    - A rule about token structure that survived contact with a real codebase.
+    - Why a component owns a decision that looks like it belongs to its parent.
+    - A constraint that is geometric or perceptual rather than a matter of taste.
+    - What a framework default does that the design never asked for.
+    - An accessibility rule stated as the constraint, not as the audit finding.
+
+  skip:
+    - Specific hex values, spacing numbers and component names. Those belong in the tokens.
+    - Restatements of the WCAG text or a framework's documentation.
+    - What was changed on one screen, with no rule behind it.
+
+durable_examples:
+  - too_specific: Changed the card padding from 16 to 24 on the pricing page
+    durable: >
+      Let a component own its internal spacing and let the layout own the space
+      between components; splitting either one across both is what makes a system
+      drift
+  - too_specific: The client's blue failed contrast on the disabled button state
+    durable: >
+      Check a brand colour against every state it will be asked to carry before
+      adopting it, not against the one the guideline illustrates
+
+scope:
+  - name: universal
+    test: True of any product, any brand
+  - name: contextual
+    test: Tied to a framework, a toolchain or a class of product
+  - name: client
+    test: >
+      Names a client, an internal system, a brand asset or a token value that is
+      theirs. Never leaves this store.
+
+sensitivity: normal
+sweep:
+  - pre_compact

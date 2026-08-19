@@ -20,8 +20,10 @@ That is the only domain signal a model cannot generate for itself, and nobody re
 
 - **Turning corrections into instructions.** Review a week of notes, promote the rules
   that repeat into your `CLAUDE.md`, style guide, or onboarding doc.
-- **Capturing a domain nobody wrote down.** Field knowledge in logistics, fabrication,
-  clinical work, law. The parts that never reached documentation.
+- **Capturing what nobody wrote down.** The conventions a codebase never states out
+  loud: why this component owns its own spacing, which call is safe to retry, what the
+  design system does when a brand colour fails contrast. Nothing stops it working
+  outside software, but that is where the corrections happen.
 - **Recording decisions with their reasons.** The reasoning outlives the decision, and it
   is what nobody can reconstruct a year later.
 - **Seeing your own friction.** Ten corrections on one topic in a week means something
