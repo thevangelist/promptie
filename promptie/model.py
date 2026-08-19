@@ -44,6 +44,23 @@ EVIDENCE = (
     ("acceptance", "they accepted a proposal without saying why -- never enough on its own"),
 )
 
+EVIDENCE_NAMES = tuple(name for name, _ in EVIDENCE)
+
+# What each level costs against the daily cap. The cap exists to keep a store from
+# filling with noise, and noise is weak evidence -- so the cap should price the
+# evidence rather than count the notes. A disagreement is the collision the whole
+# mechanism is built on; refusing one because the day already spent itself on three
+# thin notes gets the trade exactly backwards. An acceptance is not a collision at
+# all, which the persona's skip list already says without anything enforcing it.
+EVIDENCE_QUOTA = {
+    "disagreement": "free",      # never counts against the cap
+    "endorsement": "counted",    # counts, as before
+    "acceptance": "refused",     # never enough on its own
+}
+FREE_EVIDENCE = tuple(n for n in EVIDENCE_NAMES if EVIDENCE_QUOTA[n] == "free")
+REFUSED_EVIDENCE = tuple(n for n in EVIDENCE_NAMES if EVIDENCE_QUOTA[n] == "refused")
+WRITABLE_EVIDENCE = tuple(n for n in EVIDENCE_NAMES if EVIDENCE_QUOTA[n] != "refused")
+
 # How eagerly a persona captures. `bar` is spliced into the skill so the wording
 # and the cap always agree; a skill that says "capture generously" while the
 # allocator refuses after three notes would just look broken.

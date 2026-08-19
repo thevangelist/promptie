@@ -29,6 +29,8 @@ values are evidence, and they go in *Origin*.
 
 ## How much they put in
 
+This is the scale the whole decision hangs on, so decide it before anything else.
+
 | `evidence` | |
 |---|---|
 {{EVIDENCE_TABLE}}
@@ -36,19 +38,21 @@ values are evidence, and they go in *Origin*.
 "Yes, because the retry has to be idempotent" is evidence. "Yes, good" is not. When
 unsure between endorsement and acceptance, it was acceptance.
 
-## Rate
+**{{EVIDENCE_FREE}} is never rationed.** A collision the human actually pushed back on is
+what this store exists for, and the allocator will not refuse one however many notes the
+day already holds. Weaker evidence is what the daily cap is there to ration, and an
+acceptance is not a collision at all -- the allocator refuses it outright.
 
-{{SENSITIVITY_BAR}}
-
-The allocator caps this at **{{MAX_PER_DAY}} notes per day**. If it refuses, say so in one
-sentence and carry on. Do not work around it.
+So the question is never "have I written enough today". It is "how hard did they push
+back", and a real correction is always worth the note.
 
 ## Write it
 
-Ask the allocator for the path. It counts, so you never list the store:
+Ask the allocator for the path, naming the evidence. It counts, so you never list the
+store:
 
 ```
-{{ALLOCATE_CMD}} <kebab-slug>
+{{ALLOCATE_CMD}} <kebab-slug> <{{EVIDENCE_NAMES}}>
 ```
 
 Write that exact path:
@@ -58,7 +62,7 @@ Write that exact path:
 name: <kebab-slug>
 description: <the rule, one line>
 kind: {{KIND_NAMES}}
-evidence: disagreement | endorsement
+evidence: {{EVIDENCE_NAMES}}
 scope: {{SCOPE_NAMES}}
 captured: YYYY-MM-DD
 source: <project>
@@ -82,16 +86,25 @@ generally but the example does not, keep the rule and strip the example.
 {{SCOPE_TABLE}}
 
 `captured` is mandatory and always an absolute `YYYY-MM-DD` date taken from the current
-context, never "today".
+context, never "today". `evidence` must match what you told the allocator -- the index
+script checks the note and refuses the line if the two disagree.
 
 Then add the index line with the script, never with the Write tool, which would require
 reading `INDEX.md` first:
 
 ```
-{{INDEX_CMD}} <NNNNN> <YYYY-MM-DD> <slug> <scope> <kind> <hook text>
+{{INDEX_CMD}} <NNNNN> <YYYY-MM-DD> <slug> <scope> <kind> <evidence> <hook text>
 ```
 
 Finally tell the user the filename and scope in one sentence.
+
+## Rate
+
+{{SENSITIVITY_BAR}}
+
+Weaker evidence is capped at **{{MAX_PER_DAY}} notes per day**; {{EVIDENCE_FREE}} is not
+capped at all. If the allocator does refuse, say so in one sentence and carry on. Do not
+work around it.
 
 ## Skip
 

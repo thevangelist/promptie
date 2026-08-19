@@ -18,6 +18,7 @@ import sys
 STORE = os.path.expanduser(r"{{STORE}}")
 SCOPES = {{SCOPE_PY_LIST}}
 KINDS = {{KIND_PY_LIST}}
+EVIDENCES = {{EVIDENCE_PY_LIST}}
 PROMOTABLE = {{PROMOTABLE_PY_LIST}}
 RESTRICTIVE = "{{RESTRICTIVE_SCOPE}}"
 
@@ -28,11 +29,11 @@ def fail(message):
 
 
 def main(argv):
-    if len(argv) < 7:
-        fail("usage: append_index.py <NNNNN> <YYYY-MM-DD> <slug> <scope> <kind> <hook text...>")
+    if len(argv) < 8:
+        fail("usage: append_index.py <NNNNN> <YYYY-MM-DD> <slug> <scope> <kind> <evidence> <hook text...>")
 
-    number, date, slug, scope, kind = argv[1:6]
-    hook = " ".join(argv[6:])
+    number, date, slug, scope, kind, evidence = argv[1:7]
+    hook = " ".join(argv[7:])
 
     if not re.match(r"^([0-9][0-9A-Z]{4}|[A-Z]\d{4}|\d{6,9})$", number):
         fail("number must be a five-character id like 00001 or A0001, got: %s" % number)
@@ -44,6 +45,8 @@ def main(argv):
         fail("scope must be one of: %s -- got: %s" % (", ".join(SCOPES), scope))
     if kind not in KINDS:
         fail("kind must be one of: %s -- got: %s" % (", ".join(KINDS), kind))
+    if evidence not in EVIDENCES:
+        fail("evidence must be one of: %s -- got: %s" % (", ".join(EVIDENCES), evidence))
 
     # Verify the note the assistant just wrote actually carries the date, and the
     # same date it is claiming here. Numbering is guaranteed by the allocator;
@@ -61,13 +64,18 @@ def main(argv):
             fail("note %s-%s.md is missing 'captured: %s' in its frontmatter. "
                  "Add it, then run this again. Every note carries the date it "
                  "was written." % (number, slug, date))
+        if ("evidence: %s" % evidence) not in head:
+            fail("note %s-%s.md is missing 'evidence: %s' in its frontmatter. "
+                 "Add it, then run this again. How much the human put in is part "
+                 "of the note, not just of the index line."
+                 % (number, slug, evidence))
     else:
         fail("no note at %s. Write the note first, then add the index line."
              % note)
 
     os.makedirs(STORE, exist_ok=True)
-    line = "- `%s` - `%s` - [%s](%s-%s.md) - `%s` - `%s` - %s\n" % (
-        number, date, slug, number, slug, kind, scope, hook)
+    line = "- `%s` - `%s` - [%s](%s-%s.md) - `%s` - `%s` - `%s` - %s\n" % (
+        number, date, slug, number, slug, kind, scope, evidence, hook)
 
     # Append mode, explicit UTF-8: the index is never read, and the encoding is
     # not left to the platform default (which is not UTF-8 on Windows).

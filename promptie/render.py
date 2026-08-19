@@ -85,6 +85,11 @@ def tokens(p: Persona, skill_dir: str = "<skill-dir>") -> Dict[str, str]:
         "KIND_NAMES": " | ".join(p.collision_kinds),
         "KIND_PY_LIST": repr(p.collision_kinds),
         "PROMOTABLE_PY_LIST": repr(p.promotable_kinds),
+        "EVIDENCE_PY_LIST": repr(list(model.WRITABLE_EVIDENCE)),
+        "EVIDENCE_FREE_PY": repr(list(model.FREE_EVIDENCE)),
+        "EVIDENCE_REFUSED_PY": repr(list(model.REFUSED_EVIDENCE)),
+        "EVIDENCE_NAMES": " | ".join(model.WRITABLE_EVIDENCE),
+        "EVIDENCE_FREE": ", ".join(model.FREE_EVIDENCE),
         "DURABLE_CONTRAST": "\n\n".join(
             "> Not \"%s\"\n> but \"%s\"" % (bad, good) for bad, good in p.durable_examples),
     })

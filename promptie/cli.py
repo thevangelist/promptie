@@ -615,7 +615,7 @@ def _human(n):
 
 INDEX_LINE = re.compile(
     r"^- `(?P<num>[0-9A-Z]{5,9})` - `(?P<date>[\d-]{10})` - \[(?P<slug>[^\]]+)\]\([^)]*\) - "
-    r"`(?P<kind>[a-z]+)` - `(?P<scope>[a-z]+)` - (?P<hook>.*)$")
+    r"`(?P<kind>[a-z]+)` - `(?P<scope>[a-z]+)`(?: - `(?P<evidence>[a-z]+)`)? - (?P<hook>.*)$")
 
 
 def _index_rows(store: Path):
@@ -631,7 +631,9 @@ def _index_rows(store: Path):
     for line in index.read_text(encoding="utf-8").splitlines():
         match = INDEX_LINE.match(line.strip())
         if match:
-            rows.append(match.groupdict())
+            row = match.groupdict()
+            row["evidence"] = row["evidence"] or "-"
+            rows.append(row)
     return rows
 
 
@@ -652,6 +654,8 @@ def cmd_list(args):
         rows = [r for r in rows if r["kind"] == args.kind]
     if args.scope:
         rows = [r for r in rows if r["scope"] == args.scope]
+    if args.evidence:
+        rows = [r for r in rows if r["evidence"] == args.evidence]
 
     width = max(len(r["hook"]) for r in rows)
     for row in rows:
@@ -864,7 +868,7 @@ def cmd_stats(args):
             counts[r[field]] = counts.get(r[field], 0) + 1
         return sorted(counts.items(), key=lambda kv: -kv[1])
 
-    for field in ("kind", "scope"):
+    for field in ("kind", "scope", "evidence"):
         print("\nby %s:" % field)
         for value, n in tally(field):
             print("  %-12s %3d  %s" % (value, n, "#" * min(n, 40)))
@@ -931,6 +935,7 @@ def build_parser():
     lst.add_argument("persona", nargs="?", default=DEFAULT_PERSONA)
     lst.add_argument("-k", "--kind", choices=sorted(model.COLLISION_KINDS))
     lst.add_argument("-s", "--scope")
+    lst.add_argument("-e", "--evidence", choices=sorted(model.WRITABLE_EVIDENCE))
     lst.set_defaults(fn=cmd_list)
 
     rd = sub.add_parser("read", aliases=["show", "cat"],

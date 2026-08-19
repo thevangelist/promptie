@@ -330,10 +330,10 @@ class TestEndToEnd(unittest.TestCase):
     def test_allocator_numbers_in_capture_order(self):
         installer.install(self.p, self.profile)
         alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"
-        first = self._run(alloc, "first-note").stdout.strip()
+        first = self._run(alloc, "first-note", "disagreement").stdout.strip()
         self.assertTrue(first.endswith("00001-first-note.md"), first)
         Path(first).write_text("x", encoding="utf-8")
-        second = self._run(alloc, "second-note").stdout.strip()
+        second = self._run(alloc, "second-note", "disagreement").stdout.strip()
         self.assertTrue(second.endswith("00002-second-note.md"), second)
 
     def test_concurrent_allocators_reserve_distinct_paths(self):
@@ -341,7 +341,7 @@ class TestEndToEnd(unittest.TestCase):
                           path=str(COLLISION))
         installer.install(p, self.profile)
         alloc = installer.skill_dir(p, self.profile) / "new_note.py"
-        processes = [subprocess.Popen([sys.executable, str(alloc), "same-slug"],
+        processes = [subprocess.Popen([sys.executable, str(alloc), "same-slug", "disagreement"],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                       text=True)
                      for _ in range(8)]
@@ -357,7 +357,7 @@ class TestEndToEnd(unittest.TestCase):
                           path=str(COLLISION))
         installer.install(p, self.profile)
         alloc = installer.skill_dir(p, self.profile) / "new_note.py"
-        processes = [subprocess.Popen([sys.executable, str(alloc), "capped"],
+        processes = [subprocess.Popen([sys.executable, str(alloc), "capped", "endorsement"],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                       text=True)
                      for _ in range(8)]
@@ -369,7 +369,7 @@ class TestEndToEnd(unittest.TestCase):
     def test_allocator_rejects_a_bad_slug(self):
         installer.install(self.p, self.profile)
         alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"
-        result = self._run(alloc, "Not A Slug")
+        result = self._run(alloc, "Not A Slug", "disagreement")
         self.assertNotEqual(0, result.returncode)
 
     def test_ids_run_into_letters_when_the_decimal_range_is_exhausted(self):
@@ -377,7 +377,7 @@ class TestEndToEnd(unittest.TestCase):
         alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"
         store = Path(self.p.store_path)
         (store / "99999-last-decimal.md").write_text("x", encoding="utf-8")
-        nxt = Path(self._run(alloc, "first-letter").stdout.strip()).name
+        nxt = Path(self._run(alloc, "first-letter", "disagreement").stdout.strip()).name
         self.assertTrue(nxt.startswith("A0000-"), nxt)
         # '9' sorts before 'A', so capture order survives a plain sort.
         self.assertLess("99999-last-decimal.md", nxt)
@@ -387,34 +387,112 @@ class TestEndToEnd(unittest.TestCase):
                           path=str(COLLISION))
         installer.install(p, self.profile)
         alloc = installer.skill_dir(p, self.profile) / "new_note.py"
-        self.assertEqual(0, self._run(alloc, "one").returncode)
-        self.assertEqual(0, self._run(alloc, "two").returncode)
-        refused = self._run(alloc, "three")
+        self.assertEqual(0, self._run(alloc, "one", "endorsement").returncode)
+        self.assertEqual(0, self._run(alloc, "two", "endorsement").returncode)
+        refused = self._run(alloc, "three", "endorsement")
         self.assertNotEqual(0, refused.returncode)
         self.assertIn("cap", refused.stderr.lower())
 
-    def _note(self, number, slug, date="2026-01-01"):
+    def test_strong_evidence_is_never_rationed(self):
+        p = model.Persona(_minimal(sensitivity="minimal"), path="x.yaml")
+        installer.install(p, self.profile)
+        alloc = installer.skill_dir(p, self.profile) / "new_note.py"
+        # A cap of one, then four more collisions. None of them may be refused.
+        for n in range(5):
+            result = self._run(alloc, "collision-%d" % n, "disagreement")
+            self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_weak_evidence_still_meets_the_cap(self):
+        p = model.Persona(_minimal(sensitivity="minimal"), path="x.yaml")
+        installer.install(p, self.profile)
+        alloc = installer.skill_dir(p, self.profile) / "new_note.py"
+        self.assertEqual(0, self._run(alloc, "one", "endorsement").returncode)
+        refused = self._run(alloc, "two", "endorsement")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("cap", refused.stderr.lower())
+
+    def test_free_evidence_does_not_spend_the_cap_for_weak_evidence(self):
+        p = model.Persona(_minimal(sensitivity="minimal"), path="x.yaml")
+        installer.install(p, self.profile)
+        alloc = installer.skill_dir(p, self.profile) / "new_note.py"
+        for n in range(3):
+            self._run(alloc, "collision-%d" % n, "disagreement")
+        # The day's one counted slot is still untouched.
+        self.assertEqual(0, self._run(alloc, "weak", "endorsement").returncode)
+
+    def test_an_acceptance_is_refused_outright(self):
+        installer.install(self.p, self.profile)
+        alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"
+        refused = self._run(alloc, "mere-agreement", "acceptance")
+        self.assertNotEqual(0, refused.returncode)
+        self.assertIn("not a collision", refused.stderr.lower())
+        self.assertEqual([], list(Path(self.p.store_path).glob("*mere-agreement*")))
+
+    def test_allocator_rejects_unknown_evidence(self):
+        installer.install(self.p, self.profile)
+        alloc = installer.skill_dir(self.p, self.profile) / "new_note.py"
+        self.assertNotEqual(0, self._run(alloc, "a-slug", "vibes").returncode)
+
+    def _note(self, number, slug, date="2026-01-01", evidence="disagreement"):
         store = Path(self.p.store_path)
         store.mkdir(parents=True, exist_ok=True)
         (store / ("%s-%s.md" % (number, slug))).write_text(
-            "---\nname: %s\ncaptured: %s\n---\n\nThe rule.\n" % (slug, date),
-            encoding="utf-8")
+            "---\nname: %s\ncaptured: %s\nevidence: %s\n---\n\nThe rule.\n"
+            % (slug, date, evidence), encoding="utf-8")
 
     def test_index_line_carries_kind_and_scope(self):
         installer.install(self.p, self.profile)
         index = installer.skill_dir(self.p, self.profile) / "append_index.py"
         self._note("00001", "a-slug")
-        self._run(index, "00001", "2026-01-01", "a-slug", "universal", "constraint", "hook")
+        self._run(index, "00001", "2026-01-01", "a-slug", "universal", "constraint", "disagreement", "hook")
         line = (Path(self.p.store_path) / "INDEX.md").read_text(encoding="utf-8")
         self.assertIn("`constraint`", line)
         self.assertIn("`universal`", line)
+
+    def test_index_lines_written_before_evidence_still_read(self):
+        store = Path(self.p.store_path)
+        store.mkdir(parents=True, exist_ok=True)
+        (store / "INDEX.md").write_text(
+            "- `00001` - `2026-01-01` - [old](00001-old.md) - `constraint` - "
+            "`universal` - a rule from before\n"
+            "- `00002` - `2026-01-02` - [new](00002-new.md) - `constraint` - "
+            "`universal` - `disagreement` - a rule from after\n", encoding="utf-8")
+        rows = cli._index_rows(store)
+        self.assertEqual(["-", "disagreement"], [r["evidence"] for r in rows])
+
+    def test_index_line_carries_the_evidence(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "a-slug", evidence="endorsement")
+        self._run(index, "00001", "2026-01-01", "a-slug", "universal", "constraint",
+                  "endorsement", "hook")
+        line = (Path(self.p.store_path) / "INDEX.md").read_text(encoding="utf-8")
+        self.assertIn("`endorsement`", line)
+
+    def test_index_refuses_evidence_the_note_does_not_carry(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "a-slug", evidence="endorsement")
+        drifted = self._run(index, "00001", "2026-01-01", "a-slug", "universal",
+                            "constraint", "disagreement", "hook")
+        self.assertNotEqual(0, drifted.returncode)
+        index_md = (Path(self.p.store_path) / "INDEX.md").read_text(encoding="utf-8")
+        self.assertNotIn("a-slug", index_md)
+
+    def test_index_rejects_an_unknown_evidence(self):
+        installer.install(self.p, self.profile)
+        index = installer.skill_dir(self.p, self.profile) / "append_index.py"
+        self._note("00001", "s")
+        bad = self._run(index, "00001", "2026-01-01", "s", "universal", "constraint",
+                        "vibes", "h")
+        self.assertNotEqual(0, bad.returncode)
 
     def test_index_rejects_an_unknown_kind_or_scope(self):
         installer.install(self.p, self.profile)
         index = installer.skill_dir(self.p, self.profile) / "append_index.py"
         self._note("00001", "s")
-        bad_kind = self._run(index, "00001", "2026-01-01", "s", "universal", "vibes", "h")
-        bad_scope = self._run(index, "00001", "2026-01-01", "s", "cosmic", "constraint", "h")
+        bad_kind = self._run(index, "00001", "2026-01-01", "s", "universal", "vibes", "disagreement", "h")
+        bad_scope = self._run(index, "00001", "2026-01-01", "s", "cosmic", "constraint", "disagreement", "h")
         self.assertNotEqual(0, bad_kind.returncode)
         self.assertNotEqual(0, bad_scope.returncode)
 
@@ -426,7 +504,7 @@ class TestEndToEnd(unittest.TestCase):
         installer.install(self.p, self.profile)
         index = installer.skill_dir(self.p, self.profile) / "append_index.py"
         self._note("00001", "a-rule")
-        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "hook")
+        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "disagreement", "hook")
         self.assertIn("a-rule", self._candidates())
 
     def test_the_shortlist_skips_one_off_kinds_and_the_restrictive_scope(self):
@@ -435,16 +513,16 @@ class TestEndToEnd(unittest.TestCase):
         self._note("00001", "a-correction")
         self._note("00002", "a-private-rule")
         # A correction is tied to what it corrected, so it never generalises.
-        self._run(index, "00001", "2026-01-01", "a-correction", "universal", "correction", "h")
+        self._run(index, "00001", "2026-01-01", "a-correction", "universal", "correction", "disagreement", "h")
         # The most restrictive scope never leaves the store, shortlist included.
-        self._run(index, "00002", "2026-01-01", "a-private-rule", "private", "constraint", "h")
+        self._run(index, "00002", "2026-01-01", "a-private-rule", "private", "constraint", "disagreement", "h")
         self.assertEqual("", self._candidates())
 
     def test_shortlisting_never_moves_a_note(self):
         installer.install(self.p, self.profile)
         index = installer.skill_dir(self.p, self.profile) / "append_index.py"
         self._note("00001", "a-rule")
-        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "hook")
+        self._run(index, "00001", "2026-01-01", "a-rule", "universal", "constraint", "disagreement", "hook")
         self.assertTrue((Path(self.p.store_path) / "00001-a-rule.md").exists())
 
     def _hooks(self):
