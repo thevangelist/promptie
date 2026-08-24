@@ -8,6 +8,8 @@ generator's output is the product, not the generator.
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -656,6 +658,43 @@ class TestEndToEnd(unittest.TestCase):
                              capture_output=True, text=True, cwd=str(project))
         context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertNotIn("in particular for", context)
+
+    def _status_output(self, store: Path) -> str:
+        """Run the doctor against a persona pointed at `store`, and return what it said."""
+        persona = self.home / "shadow.yaml"
+        text = COLLISION.read_text(encoding="utf-8")
+        persona.write_text("\n".join(
+            "store: %s" % store if line.startswith("store:") else line
+            for line in text.splitlines()) + "\n", encoding="utf-8")
+        # `CONFIG` resolves at import time, so a patched HOME does not move it and the
+        # doctor would read the real user's profiles. Point it at this test's HOME:
+        # a suite that reports on the machine it happens to run on is not a suite.
+        buffer = io.StringIO()
+        real_config, cli.CONFIG = cli.CONFIG, self.home / "profiles.json"
+        try:
+            with contextlib.redirect_stdout(buffer):
+                cli.cmd_doctor(argparse.Namespace(persona=str(persona), profile=None))
+        finally:
+            cli.CONFIG = real_config
+        return buffer.getvalue()
+
+    def test_status_reports_a_store_directory_that_shadows_the_focus_file(self):
+        installer.install(self.p, self.profile)
+        store = self.home / "oma" / cli.FOCUS_FILENAME
+        store.mkdir(parents=True)
+        self.assertIn("shadows the focus file", self._status_output(store))
+
+    def test_status_leaves_a_focus_file_on_the_store_path_alone(self):
+        """Only a directory can be in the way; a file there is the focus file itself.
+
+        Reporting it would send the user to move a store that is not in the way, and
+        to delete the focus file that is working.
+        """
+        installer.install(self.p, self.profile)
+        store = self.home / "oma" / cli.FOCUS_FILENAME
+        store.parent.mkdir(parents=True)
+        store.write_text("capture routing decisions", encoding="utf-8")
+        self.assertNotIn("shadows the focus file", self._status_output(store))
 
     def test_status_names_the_focus_file_the_hook_actually_looks_for(self):
         """Two hardcoded copies of one filename, kept honest from the template side."""

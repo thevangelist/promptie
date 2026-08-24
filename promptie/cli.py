@@ -851,7 +851,10 @@ def cmd_doctor(args):
     # carry focus -- silently, since the hook has nothing to report to. Capture itself
     # still works, so this is advice rather than a failure: the remedy is to move the
     # store, which no reinstall can decide on the user's behalf.
-    if store.name == FOCUS_FILENAME:
+    # `is_dir` and not just the name: a *file* on that path shadows nothing, it is a
+    # working focus file, and saying otherwise sends the user to move a store that is
+    # not in the way.
+    if store.is_dir() and store.name == FOCUS_FILENAME:
         print("  %s %-34s %s" % (_paint("note", C.WARN), "store shadows the focus file",
                                  _paint("no %s focus can exist in %s"
                                         % (FOCUS_FILENAME, store.parent), C.DIM)))
