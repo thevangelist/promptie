@@ -641,6 +641,27 @@ class TestEndToEnd(unittest.TestCase):
         context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertIn("capture routing decisions", context)
 
+    def test_a_store_directory_shadows_the_focus_file_beside_it(self):
+        """The failure that made this worth reporting: focus silently impossible.
+
+        A store placed at `<dir>/.promptie` occupies the name the hook looks for, so
+        nothing under `<dir>` can ever carry focus. The hook is right to skip a
+        directory rather than crash, which is exactly why only `promptie status` can
+        surface it.
+        """
+        installer.install(self.p, self.profile)
+        project = self.home / "project"
+        (project / cli.FOCUS_FILENAME).mkdir(parents=True)
+        out = subprocess.run([sys.executable, str(self._hooks()), "arm"],
+                             capture_output=True, text=True, cwd=str(project))
+        context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertNotIn("in particular for", context)
+
+    def test_status_names_the_focus_file_the_hook_actually_looks_for(self):
+        """Two hardcoded copies of one filename, kept honest from the template side."""
+        source = (REPO / "templates" / "py" / "hooks.py.tmpl").read_text(encoding="utf-8")
+        self.assertIn('"%s"' % cli.FOCUS_FILENAME, source)
+
 
 # -- portability ----------------------------------------------------------
 

@@ -31,6 +31,11 @@ PERSONA_DIRS = [USER_PERSONAS, PACKAGED_PERSONAS]
 DEFAULT_PERSONA = "collision"
 PERSONA_DIR = USER_PERSONAS  # where `promptie new` would write
 
+# The per-project focus file the generated hook looks for at every ancestor of the
+# working directory. Kept in step with `project_focus` in templates/py/hooks.py.tmpl,
+# which cannot import this because it ships as a standalone script.
+FOCUS_FILENAME = ".promptie"
+
 # Rough divisor for characters -> tokens on English prose. Good enough to keep a
 # budget honest; we report characters too, which are exact.
 CHARS_PER_TOKEN = 4.0
@@ -839,6 +844,17 @@ def cmd_doctor(args):
             check("store writable", True)
         except OSError as exc:
             check("store writable", False, str(exc))
+
+    # A store named like the focus file quietly shadows it. `project_focus` looks for
+    # a *file* at each ancestor directory and skips anything else, so a store
+    # directory sitting on that exact path means no project under its parent can ever
+    # carry focus -- silently, since the hook has nothing to report to. Capture itself
+    # still works, so this is advice rather than a failure: the remedy is to move the
+    # store, which no reinstall can decide on the user's behalf.
+    if store.name == FOCUS_FILENAME:
+        print("  %s %-34s %s" % (_paint("note", C.WARN), "store shadows the focus file",
+                                 _paint("no %s focus can exist in %s"
+                                        % (FOCUS_FILENAME, store.parent), C.DIM)))
 
     exe = installer.runtime_python()
     check("interpreter still present", os.path.exists(exe), exe)
