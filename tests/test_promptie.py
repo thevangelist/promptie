@@ -643,13 +643,12 @@ class TestEndToEnd(unittest.TestCase):
         context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertIn("capture routing decisions", context)
 
-    def test_a_store_directory_shadows_the_focus_file_beside_it(self):
-        """The failure that made this worth reporting: focus silently impossible.
+    def test_a_store_directory_takes_the_focus_path_at_that_level(self):
+        """The failure that made this worth reporting: focus silently unavailable.
 
-        A store placed at `<dir>/.promptie` occupies the name the hook looks for, so
-        nothing under `<dir>` can ever carry focus. The hook is right to skip a
-        directory rather than crash, which is exactly why only `promptie status` can
-        surface it.
+        A store at `<dir>/.promptie` occupies the path the hook probes at `<dir>`, so
+        a focus file can never sit there. The hook is right to skip a directory rather
+        than crash, which is exactly why only `promptie status` can surface it.
         """
         installer.install(self.p, self.profile)
         project = self.home / "project"
@@ -658,6 +657,24 @@ class TestEndToEnd(unittest.TestCase):
                              capture_output=True, text=True, cwd=str(project))
         context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertNotIn("in particular for", context)
+
+    def test_a_store_on_the_focus_path_still_leaves_subdirectories_their_focus(self):
+        """The bound on the damage, and the reason the note must not overstate it.
+
+        `project_focus` walks on to the parent when a candidate is not a file, so only
+        the level the store occupies is lost. A subdirectory below it is reached
+        first and keeps working.
+        """
+        installer.install(self.p, self.profile)
+        oma = self.home / "oma"
+        (oma / cli.FOCUS_FILENAME).mkdir(parents=True)
+        project = oma / "project"
+        project.mkdir()
+        (project / cli.FOCUS_FILENAME).write_text("capture routing", encoding="utf-8")
+        out = subprocess.run([sys.executable, str(self._hooks()), "arm"],
+                             capture_output=True, text=True, cwd=str(project))
+        context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("capture routing", context)
 
     def _status_output(self, store: Path) -> str:
         """Run the doctor against a persona pointed at `store`, and return what it said."""
@@ -682,7 +699,7 @@ class TestEndToEnd(unittest.TestCase):
         installer.install(self.p, self.profile)
         store = self.home / "oma" / cli.FOCUS_FILENAME
         store.mkdir(parents=True)
-        self.assertIn("shadows the focus file", self._status_output(store))
+        self.assertIn("store sits on the focus path", self._status_output(store))
 
     def test_status_leaves_a_focus_file_on_the_store_path_alone(self):
         """Only a directory can be in the way; a file there is the focus file itself.
@@ -694,7 +711,7 @@ class TestEndToEnd(unittest.TestCase):
         store = self.home / "oma" / cli.FOCUS_FILENAME
         store.parent.mkdir(parents=True)
         store.write_text("capture routing decisions", encoding="utf-8")
-        self.assertNotIn("shadows the focus file", self._status_output(store))
+        self.assertNotIn("store sits on the focus path", self._status_output(store))
 
     def test_status_names_the_focus_file_the_hook_actually_looks_for(self):
         """Two hardcoded copies of one filename, kept honest from the template side."""

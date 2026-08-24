@@ -845,19 +845,20 @@ def cmd_doctor(args):
         except OSError as exc:
             check("store writable", False, str(exc))
 
-    # A store named like the focus file quietly shadows it. `project_focus` looks for
-    # a *file* at each ancestor directory and skips anything else, so a store
-    # directory sitting on that exact path means no project under its parent can ever
-    # carry focus -- silently, since the hook has nothing to report to. Capture itself
-    # still works, so this is advice rather than a failure: the remedy is to move the
-    # store, which no reinstall can decide on the user's behalf.
+    # A store named like the focus file occupies the path `project_focus` probes at
+    # one directory level. It looks for a *file* there and walks on to the parent when
+    # it finds anything else, so the loss is narrow and worth stating precisely:
+    # subdirectories and higher ancestors still carry focus, but that one directory
+    # never can -- silently, since a skipped candidate has nothing to report to.
+    # Capture itself still works, so this is advice rather than a failure: the remedy
+    # is to move the store, which no reinstall can decide on the user's behalf.
     # `is_dir` and not just the name: a *file* on that path shadows nothing, it is a
     # working focus file, and saying otherwise sends the user to move a store that is
     # not in the way.
     if store.is_dir() and store.name == FOCUS_FILENAME:
-        print("  %s %-34s %s" % (_paint("note", C.WARN), "store shadows the focus file",
-                                 _paint("no %s focus can exist in %s"
-                                        % (FOCUS_FILENAME, store.parent), C.DIM)))
+        print("  %s %-34s %s" % (_paint("note", C.WARN), "store sits on the focus path",
+                                 _paint("%s cannot hold a %s file; subdirectories can"
+                                        % (store.parent, FOCUS_FILENAME), C.DIM)))
 
     exe = installer.runtime_python()
     check("interpreter still present", os.path.exists(exe), exe)
