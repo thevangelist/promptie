@@ -8,6 +8,8 @@ generator's output is the product, not the generator.
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -640,6 +642,81 @@ class TestEndToEnd(unittest.TestCase):
                              capture_output=True, text=True, cwd=str(project))
         context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
         self.assertIn("capture routing decisions", context)
+
+    def test_a_store_directory_takes_the_focus_path_at_that_level(self):
+        """The failure that made this worth reporting: focus silently unavailable.
+
+        A store at `<dir>/.promptie` occupies the path the hook probes at `<dir>`, so
+        a focus file can never sit there. The hook is right to skip a directory rather
+        than crash, which is exactly why only `promptie status` can surface it.
+        """
+        installer.install(self.p, self.profile)
+        project = self.home / "project"
+        (project / cli.FOCUS_FILENAME).mkdir(parents=True)
+        out = subprocess.run([sys.executable, str(self._hooks()), "arm"],
+                             capture_output=True, text=True, cwd=str(project))
+        context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertNotIn("in particular for", context)
+
+    def test_a_store_on_the_focus_path_still_leaves_subdirectories_their_focus(self):
+        """The bound on the damage, and the reason the note must not overstate it.
+
+        `project_focus` walks on to the parent when a candidate is not a file, so only
+        the level the store occupies is lost. A subdirectory below it is reached
+        first and keeps working.
+        """
+        installer.install(self.p, self.profile)
+        oma = self.home / "oma"
+        (oma / cli.FOCUS_FILENAME).mkdir(parents=True)
+        project = oma / "project"
+        project.mkdir()
+        (project / cli.FOCUS_FILENAME).write_text("capture routing", encoding="utf-8")
+        out = subprocess.run([sys.executable, str(self._hooks()), "arm"],
+                             capture_output=True, text=True, cwd=str(project))
+        context = json.loads(out.stdout)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("capture routing", context)
+
+    def _status_output(self, store: Path) -> str:
+        """Run the doctor against a persona pointed at `store`, and return what it said."""
+        persona = self.home / "shadow.yaml"
+        text = COLLISION.read_text(encoding="utf-8")
+        persona.write_text("\n".join(
+            "store: %s" % store if line.startswith("store:") else line
+            for line in text.splitlines()) + "\n", encoding="utf-8")
+        # `CONFIG` resolves at import time, so a patched HOME does not move it and the
+        # doctor would read the real user's profiles. Point it at this test's HOME:
+        # a suite that reports on the machine it happens to run on is not a suite.
+        buffer = io.StringIO()
+        real_config, cli.CONFIG = cli.CONFIG, self.home / "profiles.json"
+        try:
+            with contextlib.redirect_stdout(buffer):
+                cli.cmd_doctor(argparse.Namespace(persona=str(persona), profile=None))
+        finally:
+            cli.CONFIG = real_config
+        return buffer.getvalue()
+
+    def test_status_reports_a_store_directory_that_shadows_the_focus_file(self):
+        installer.install(self.p, self.profile)
+        store = self.home / "oma" / cli.FOCUS_FILENAME
+        store.mkdir(parents=True)
+        self.assertIn("store sits on the focus path", self._status_output(store))
+
+    def test_status_leaves_a_focus_file_on_the_store_path_alone(self):
+        """Only a directory can be in the way; a file there is the focus file itself.
+
+        Reporting it would send the user to move a store that is not in the way, and
+        to delete the focus file that is working.
+        """
+        installer.install(self.p, self.profile)
+        store = self.home / "oma" / cli.FOCUS_FILENAME
+        store.parent.mkdir(parents=True)
+        store.write_text("capture routing decisions", encoding="utf-8")
+        self.assertNotIn("store sits on the focus path", self._status_output(store))
+
+    def test_status_names_the_focus_file_the_hook_actually_looks_for(self):
+        """Two hardcoded copies of one filename, kept honest from the template side."""
+        source = (REPO / "templates" / "py" / "hooks.py.tmpl").read_text(encoding="utf-8")
+        self.assertIn('"%s"' % cli.FOCUS_FILENAME, source)
 
 
 # -- portability ----------------------------------------------------------

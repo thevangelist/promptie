@@ -31,6 +31,11 @@ PERSONA_DIRS = [USER_PERSONAS, PACKAGED_PERSONAS]
 DEFAULT_PERSONA = "collision"
 PERSONA_DIR = USER_PERSONAS  # where `promptie new` would write
 
+# The per-project focus file the generated hook looks for at every ancestor of the
+# working directory. Kept in step with `project_focus` in templates/py/hooks.py.tmpl,
+# which cannot import this because it ships as a standalone script.
+FOCUS_FILENAME = ".promptie"
+
 # Rough divisor for characters -> tokens on English prose. Good enough to keep a
 # budget honest; we report characters too, which are exact.
 CHARS_PER_TOKEN = 4.0
@@ -839,6 +844,21 @@ def cmd_doctor(args):
             check("store writable", True)
         except OSError as exc:
             check("store writable", False, str(exc))
+
+    # A store named like the focus file occupies the path `project_focus` probes at
+    # one directory level. It looks for a *file* there and walks on to the parent when
+    # it finds anything else, so the loss is narrow and worth stating precisely:
+    # subdirectories and higher ancestors still carry focus, but that one directory
+    # never can -- silently, since a skipped candidate has nothing to report to.
+    # Capture itself still works, so this is advice rather than a failure: the remedy
+    # is to move the store, which no reinstall can decide on the user's behalf.
+    # `is_dir` and not just the name: a *file* on that path shadows nothing, it is a
+    # working focus file, and saying otherwise sends the user to move a store that is
+    # not in the way.
+    if store.is_dir() and store.name == FOCUS_FILENAME:
+        print("  %s %-34s %s" % (_paint("note", C.WARN), "store sits on the focus path",
+                                 _paint("%s cannot hold a %s file; subdirectories can"
+                                        % (store.parent, FOCUS_FILENAME), C.DIM)))
 
     exe = installer.runtime_python()
     check("interpreter still present", os.path.exists(exe), exe)
